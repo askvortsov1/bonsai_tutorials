@@ -1,0 +1,73 @@
+# Todo List: Hello World!
+
+Welcome to the `todo_list` Bonsai tutorial!
+Over several chapters, you'll build a full-stack todo list application entirely in OCaml.
+We'll focus on how to design and write Bonsai components, and how to use Bonsai's tools and primitives.
+However, chapter 2 will walk you through implementing the RPC protocol and backend implementation.
+
+In this chapter, we'll cover:
+
+- How to run the tutorial code
+- What the starter code does
+
+## Running the Tutorial
+
+You'll write code in the `workbench/todo_list` directory, but terminal commands will be run
+from the root of this "tutorials" library.
+
+As you work through this tutorial, you should frequently build and re-run the application
+to see your changes come to life. 
+
+Before you start, install all dependencies:
+
+```sh
+$ opam install workbench/todo_list
+```
+
+Then, when you've made changes, you can run:
+
+```sh
+$ dune build
+$ ./_build/default/workbench/todo_list/server/bin/main.exe
+```
+
+to build and run your code. Then, all you need to do is go to http://localhost:8080 in your browser!
+
+At this point, all you should see is a "Hello world! message. Let's discuss how it works.
+
+## Starter Code Structure
+
+Most chapters of this tutorial will have you writing code.
+Since we've given you a bunch of starter code, we wanted to explain it before we jump in.
+If you've worked on full-stack OCaml projects before, you probably already know most of this.
+
+We'll start by explaining the starter code's directory structure:
+
+- `todo_list.opam`, `dune-project`: these declare that our workbench is a self-contained project, allowing it to be built.
+- `common`: this directory will eventually contain type definitions and RPC protocol specifications that will be shared by the frontend and backend.
+- `server`: this directory contains backend code, split into 2 parts:
+  - `src`: this is the source code for our backend, exposed as a `Command`
+  - `bin`: this wraps the server from `src` into a binary. That's what we run to launch the site.
+- `client`: this is where we'll build our Bonsai web app.
+
+## The Backend
+
+The goal of these tutorials is to teach you how to write Bonsai. However, frontend web UIs generally don't exist in a vacuum.
+There's often a backend server that we want to communicate with; in our case, through RPC calls.
+Also, web apps need to be served from somewhere, although that could be done as static files.
+For an example of that, see the `snake_game` tutorial.
+
+This project's server will have 2 jobs:
+
+1. Serving content. This includes:
+   1. HTML for the todo page, and for a "404 not found" page
+   2. Static JS/CSS files, which Bonsai will compile from our frontend code.
+2. Handling RPC requests from the frontend.
+
+We'll implement (2) in chapter 2, and focus on (1) for now.
+
+...
+
+## Bonsai Hello World
+
+...
