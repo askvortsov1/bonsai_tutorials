@@ -1,12 +1,6 @@
 open! Core
 open! Async
 
-let initialize_connection _initiated_from _addr _inet connection = connection
-
-let respond_string ~content_type ?flush ?headers ?status s =
-  let headers = Cohttp.Header.add_opt headers "Content-Type" content_type in
-  Cohttp_async.Server.respond_string ?flush ~headers ?status s
-
 let not_found_html =
   {|
 <!DOCTYPE html>
@@ -21,6 +15,7 @@ let not_found_html =
 </html>
 |}
 
+(* $MDX part-begin=index_html *)
 let html =
   {|
 <!DOCTYPE html>
@@ -36,6 +31,12 @@ let html =
   </body>
 </html>
 |}
+(* $MDX part-end *)
+
+(* $MDX part-begin=handler *)
+let respond_string ~content_type ?flush ?headers ?status s =
+  let headers = Cohttp.Header.add_opt headers "Content-Type" content_type in
+  Cohttp_async.Server.respond_string ?flush ~headers ?status s
 
 let handler ~body:_ _inet req =
   let path = Uri.path (Cohttp.Request.uri req) in
@@ -46,6 +47,10 @@ let handler ~body:_ _inet req =
         Embedded_files.main_dot_bc_dot_js
   | _ ->
       respond_string ~content_type:"text/html" ~status:`Not_found not_found_html
+(* $MDX part-end *)
+
+(* $MDX part-begin=server_wrapper *)
+let initialize_connection _initiated_from _addr _inet connection = connection
 
 let main ~port =
   let hostname = Unix.gethostname () in
@@ -61,7 +66,9 @@ let main ~port =
       ~initial_connection_state:initialize_connection ()
   in
   Cohttp_async.Server.close_finished server
+(* $MDX part-end *)
 
+(* $MDX part-begin=command *)
 let command =
   Command.async ~summary:"Start server for todo-list"
     (let%map_open.Command port =
@@ -70,3 +77,4 @@ let command =
          ~doc:"port on which to serve"
      in
      fun () -> main ~port)
+(* $MDX part-end *)

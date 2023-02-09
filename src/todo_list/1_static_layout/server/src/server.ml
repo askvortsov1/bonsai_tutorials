@@ -1,12 +1,6 @@
 open! Core
 open! Async
 
-let initialize_connection _initiated_from _addr _inet connection = connection
-
-let respond_string ~content_type ?flush ?headers ?status s =
-  let headers = Cohttp.Header.add_opt headers "Content-Type" content_type in
-  Cohttp_async.Server.respond_string ?flush ~headers ?status s
-
 let not_found_html =
   {|
 <!DOCTYPE html>
@@ -37,6 +31,10 @@ let html =
 </html>
 |}
 
+let respond_string ~content_type ?flush ?headers ?status s =
+  let headers = Cohttp.Header.add_opt headers "Content-Type" content_type in
+  Cohttp_async.Server.respond_string ?flush ~headers ?status s
+
 let handler ~body:_ _inet req =
   let path = Uri.path (Cohttp.Request.uri req) in
   match path with
@@ -46,6 +44,8 @@ let handler ~body:_ _inet req =
         Embedded_files.main_dot_bc_dot_js
   | _ ->
       respond_string ~content_type:"text/html" ~status:`Not_found not_found_html
+
+let initialize_connection _initiated_from _addr _inet connection = connection
 
 let main ~port =
   let hostname = Unix.gethostname () in
