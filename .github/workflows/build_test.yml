@@ -54,5 +54,8 @@ jobs:
       - name: Build
         run: opam exec -- dune build
         
-      - name: Testing
+      - name: Format
+        run: opam exec -- dune build @fmt
+        
+      - name: Test
         run: opam exec -- dune test

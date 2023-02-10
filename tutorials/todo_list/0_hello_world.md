@@ -10,7 +10,7 @@ In this chapter, we'll cover:
 - How to run the tutorial code
 - What the starter code does
 
-We recommend also reading:
+We recommend pairing it with:
 
 - The [Bonsai explanation introduction](https://bonsai.red/00-introduction.html)
 

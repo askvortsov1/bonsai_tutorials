@@ -40,6 +40,14 @@ The goal of this tutorial is to teach you how to use Bonsai.
 We won't cover much of the conceptual background, history, inner workings, or all of the available tools.
 For that, you should read our [explanatory documentation](https://bonsai.red/). We recommend having it open, and will be linking to it frequently.
 
+A few tips while building:
+
+- Build and check your code frequently to see the impact of your changes
+- Don't hesitate to go beyond the scope of the tutorial.
+  Improvise! Add some buttons, improve the CSS, decorate with images or interactive elements!
+  Trying new things is the best way to learn.
+- If the code you're writing just doesn't seem to work, feel free to refer to
+  the completed versions of each chapter in `src`!
 
 ## Additional Resources
 

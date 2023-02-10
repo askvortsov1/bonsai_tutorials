@@ -1,3 +1,5 @@
-(executables (names main)
+(executables
+ (names main)
  (libraries server core_unix.command_unix)
- (preprocess (pps ppx_jane)))
+ (preprocess
+  (pps ppx_jane)))

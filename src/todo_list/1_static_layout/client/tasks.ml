@@ -38,7 +38,8 @@ let view_task { Task.completed_on; due_date; title; description } =
       ~attr:(Attr.class_ Style.task_tile)
       [
         Node.h3 [ Node.text title ];
-        Node.div ~attr:(Attr.class_ Style.task_meta)
+        Node.div
+          ~attr:(Attr.class_ Style.task_meta)
           [
             Node.p [ Node.textf "Due: %s" (Date.to_string due_date) ];
             (match completed_on with
