@@ -6,6 +6,11 @@ depends: [
   "ocaml"
   "dune" {>= "3.6"}
   "mdx"
+  "core"
+  "core_unix"
+  "re"
+  "ppx_jane"
+  "ppx_typed_fields"
   "odoc" {with-doc}
 ]
 build: [

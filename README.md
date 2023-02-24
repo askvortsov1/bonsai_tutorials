@@ -62,14 +62,3 @@ Here are a few useful references for understanding Bonsai. Some of these will be
 * [Tech talk on incremental computation](https://www.youtube.com/watch?v=G6a5G5i4gQU)
 * [Bonsai History](https://github.com/janestreet/bonsai/blob/master/docs/blogs/history.md), with the most recent development [in a separate article](https://github.com/janestreet/bonsai/blob/master/docs/blogs/proc.md).
 * [How to test Bonsai components](https://github.com/janestreet/bonsai/blob/master/docs/blogs/testing.md)
-
-## Need to build:
-
-- reset a workbench to a version of a tutorial
-- generate diffs from each version to the next for manual review
-
-For both, need to read in info:
-
-- Get list of tutorials, and chapters within those projects
-- Clear out MDX comment lines, since these will be in different places for different things, and shouldn't be in the starter code.
-- Validate source is present for all in tutorials
