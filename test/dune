@@ -3,7 +3,6 @@
  (public_name bonsai_tutorials.test)
  (inline_tests
   (deps
-   ./fixtures/read_env/dune
    (glob_files_rec fixtures/**))
   (flags (-verbose)))
  (libraries bonsai_tutorials.infra_src)

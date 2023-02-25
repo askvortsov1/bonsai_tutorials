@@ -3,14 +3,14 @@ module Chapter = Chapter
 module Mem_fs = Mem_fs
 module Fs_util = Fs_util
 
-val reset_workbench :
-   preserve_archive:bool ->
-   tutorials_dir:string ->
-   src_dir:string ->
-   workbench_dir:string ->
-   project:string ->
-   chapter_index:int ->
-   unit Or_error.t
+val reset_workbench
+  :  make_backup:bool
+  -> tutorials_dir:string
+  -> src_dir:string
+  -> workbench_dir:string
+  -> project:string
+  -> chapter_index:int
+  -> unit Or_error.t
 
 (* val save_diffs :
    tutorials_dir:string ->

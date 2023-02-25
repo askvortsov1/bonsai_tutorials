@@ -59,28 +59,43 @@ end
 
 let serialize = String.concat ~sep:"\n"
 
-let reset_workbench ~preserve_archive ~tutorials_dir ~src_dir ~workbench_dir ~project ~chapter_index =
+let reset_workbench
+  ~make_backup
+  ~tutorials_dir
+  ~src_dir
+  ~workbench_dir
+  ~project
+  ~chapter_index
+  =
   let open Or_error.Let_syntax in
   let%bind all_chapters = Private.get_chapters ~tutorials_dir ~src_dir ~project in
   match List.nth all_chapters chapter_index with
-  | None -> let max_chapter = (List.length all_chapters) - 1 in
-    Or_error.error_s [%message "Requested 0-indexed chapter does not exist" (chapter_index: int) (max_chapter: int)]
+  | None ->
+    let max_chapter = List.length all_chapters - 1 in
+    Or_error.error_s
+      [%message
+        "Requested 0-indexed chapter does not exist"
+          (chapter_index : int)
+          (max_chapter : int)]
   | Some chapter ->
     let workbench_proj_dir = Filename.concat workbench_dir project in
     let%bind backup =
-      if preserve_archive then
+      if make_backup
+      then (
         let%bind curr = Mem_fs.read_from_dir ~f:String.split_lines workbench_proj_dir in
         let now = Time_ns.now () in
         let now_str = Time_ns.to_string_abs_trimmed ~zone:Time.Zone.utc now in
-        let backup_dir = Filename.concat workbench_dir (sprintf "%s-backup-%s" project now_str) in
-        Or_error.return (Mem_fs.with_root_dir curr backup_dir)
+        let backup_dir =
+          Filename.concat workbench_dir (sprintf "%s-backup-%s" project now_str)
+        in
+        Or_error.return (Mem_fs.mount curr backup_dir))
       else Or_error.return Mem_fs.empty
-    in 
-    let source = Mem_fs.with_root_dir chapter.source workbench_proj_dir in
-    Mem_fs.persist_to_fs ~f:serialize source;
-    Mem_fs.persist_to_fs ~f:serialize backup;
-    Or_error.return ()
-
+    in
+    let source = Mem_fs.mount chapter.source workbench_proj_dir in
+    let source_write = Mem_fs.persist_to_fs ~clear:true ~f:serialize source
+    and backup_write = Mem_fs.persist_to_fs ~clear:make_backup ~f:serialize backup in
+    Or_error.all_unit [ source_write; backup_write ]
+;;
 
 (* let save_diffs ~tutorials_dir ~src_dir ~diffs_dir ~project = *)
 (* Pull in all chapters in the project *)

@@ -28,15 +28,23 @@ let%expect_test "least_common_ancestor_abs" =
   let same_dir = least_common_ancestor_abs "/path/to/dir/x.txt" "/path/to/dir/y.txt" in
   print_s [%message same_dir];
   [%expect {| /path/to/dir |}];
-  let flat_and_nested = least_common_ancestor_abs "/path/x.txt" "/path/to/dir/with/some/more/y.txt" in
+  let flat_and_nested =
+    least_common_ancestor_abs "/path/x.txt" "/path/to/dir/with/some/more/y.txt"
+  in
   print_s [%message flat_and_nested];
   [%expect {| /path |}];
-  let both_deep = least_common_ancestor_abs "/path/that/goes/to/another/dir/x.txt" "/path/to/dir/with/some/more/y.txt" in
+  let both_deep =
+    least_common_ancestor_abs
+      "/path/that/goes/to/another/dir/x.txt"
+      "/path/to/dir/with/some/more/y.txt"
+  in
   print_s [%message both_deep];
   [%expect {| /path |}];
-  let no_shared = least_common_ancestor_abs "/left/lose/your/horse.txt" "/right/lose/your/head.txt" in
+  let no_shared =
+    least_common_ancestor_abs "/left/lose/your/horse.txt" "/right/lose/your/head.txt"
+  in
   print_s [%message no_shared];
-  [%expect {| / |}];
+  [%expect {| / |}]
 ;;
 
 let%expect_test "relativize_path" =
@@ -48,5 +56,5 @@ let%expect_test "relativize_path" =
   [%expect {| fixtures/something |}];
   let rel_above = relativize_path "../src/something_else" in
   print_s [%message rel_above];
-  [%expect {| ../src/something_else |}];
+  [%expect {| ../src/something_else |}]
 ;;

@@ -1,5 +1,6 @@
 open! Core
 open Infra_src.Mem_fs
+open Infra_src.Fs_util
 
 let%expect_test "read from fs" =
   let fs = read_from_dir ~f:Fn.id "./fixtures/read_env" in
@@ -57,10 +58,11 @@ let files =
 
 let%expect_test "write to fs" =
   let root = "./fixtures/write" in
+  write_all_deep (Filename.concat root "file.txt") ~data:"Something that's not O";
   let fs = of_file_list root files in
-  (match fs with
-   | Ok x -> persist_to_fs ~f:Fn.id x
-   | Error err -> print_s [%message (err : Error.t)]);
+  let write_result = Or_error.bind fs ~f:(persist_to_fs ~f:Fn.id) in
+  print_s [%message (write_result : unit Or_error.t)];
+  [%expect {| (write_result (Ok ())) |}];
   let real_files = Infra_src.Fs_util.ls_dir_rec root in
   print_s [%message (real_files : string list Or_error.t)];
   [%expect
@@ -80,25 +82,34 @@ let%expect_test "write to fs" =
   [%expect {| (contents (O Caml My Caml)) |}]
 ;;
 
-let%expect_test "merge" =
-  let root = "./fixtures/merged" in
+let%expect_test "write to fs clear" =
+  let root = "./fixtures/write" in
+  write_all_deep (Filename.concat root "other_file.txt") ~data:"abc";
+  write_all_deep (Filename.concat root "nested/pre-existing_file.txt") ~data:"123";
   let fs = of_file_list root files in
-  let merged_fs =
-    let open Or_error.Let_syntax in
-    let%bind fs1 = fs in
-    let fs2 = with_root_dir fs1 "./fixtures/alt/subdir" in
-    Ok (merge fs1 fs2)
-  in
-  print_s [%message (merged_fs : string t Or_error.t)];
+  let write_result = Or_error.bind fs ~f:(persist_to_fs ~f:Fn.id ~clear:false) in
+  print_s [%message (write_result : unit Or_error.t)];
+  [%expect {| (write_result (Ok ())) |}];
+  let real_files = Infra_src.Fs_util.ls_dir_rec root in
+  print_s [%message (real_files : string list Or_error.t)];
   [%expect
     {|
-    (merged_fs
+    (real_files
      (Ok
-      ((root_dir fixtures)
-       (files
-        ((alt/subdir/file.txt O) (alt/subdir/file2.txt Caml)
-         (alt/subdir/folder/nested/file.txt My)
-         (alt/subdir/folder/nested/file2.txt Caml) (merged/file.txt O)
-         (merged/file2.txt Caml) (merged/folder/nested/file.txt My)
-         (merged/folder/nested/file2.txt Caml)))))) |}]
+      (./fixtures/write/other_file.txt ./fixtures/write/file.txt
+       ./fixtures/write/nested/pre-existing_file.txt ./fixtures/write/file2.txt
+       ./fixtures/write/folder/nested/file.txt
+       ./fixtures/write/folder/nested/file2.txt))) |}];
+  let write_result = Or_error.bind fs ~f:(persist_to_fs ~f:Fn.id ~clear:true) in
+  print_s [%message (write_result : unit Or_error.t)];
+  [%expect {| (write_result (Ok ())) |}];
+  let real_files = Infra_src.Fs_util.ls_dir_rec root in
+  print_s [%message (real_files : string list Or_error.t)];
+  [%expect
+    {|
+    (real_files
+     (Ok
+      (./fixtures/write/file.txt ./fixtures/write/file2.txt
+       ./fixtures/write/folder/nested/file.txt
+       ./fixtures/write/folder/nested/file2.txt))) |}]
 ;;

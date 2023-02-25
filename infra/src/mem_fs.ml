@@ -27,34 +27,20 @@ let read_from_dir ?exclude ~f root_dir =
   |> of_file_list root_dir
 ;;
 
-let persist_to_fs t ~f =
-  t.files
-  |> Map.map ~f
-  |> Map.iteri ~f:(fun ~key ~data ->
-       let path = Filename.concat t.root_dir key in
-       Fs_util.write_all_deep path ~data)
-;;
-
-let cwd = Sys_unix.getcwd ()
-
-let merge a b =
-  let absolutize_paths t =
-    let abs_root = Filename.to_absolute_exn ~relative_to:cwd t.root_dir in
-    let abs_files =
-      t.files |> Map.to_alist |> List.map ~f:(fun (k, v) -> Filename.concat abs_root k, v)
-    in
-    abs_root, abs_files
+let persist_to_fs ?(clear = false) t ~f =
+  let open Or_error.Let_syntax in
+  let%bind files_to_clear =
+    if clear && Sys_unix.file_exists_exn t.root_dir
+    then Fs_util.ls_dir_rec t.root_dir
+    else Or_error.return []
   in
-  let (root_a, files_a), (root_b, files_b) = absolutize_paths a, absolutize_paths b in
-  let common_root = Fs_util.least_common_ancestor_abs root_a root_b in
-  let files = List.append files_a files_b in
-  let files_map =
-    files
-    |> List.map ~f:(fun (k, v) -> Fs_util.relativize_path ~relative_to:common_root k, v)
-    |> Map.of_alist_reduce (module String) ~f:(fun _ x -> x)
-  in
-  let rel_common_root = Fs_util.relativize_path common_root in
-  { root_dir = rel_common_root; files = files_map }
+  Or_error.try_with (fun () ->
+    files_to_clear |> List.iter ~f:Sys_unix.remove;
+    t.files
+    |> Map.map ~f
+    |> Map.iteri ~f:(fun ~key ~data ->
+         let path = Filename.concat t.root_dir key in
+         Fs_util.write_all_deep path ~data))
 ;;
 
 let map t ~f =
@@ -63,9 +49,5 @@ let map t ~f =
 ;;
 
 let root_dir t = t.root_dir
-
-let with_root_dir t new_root_dir =
-  { t with root_dir = Fs_util.relativize_path new_root_dir }
-;;
-
+let mount t new_root_dir = { t with root_dir = Fs_util.relativize_path new_root_dir }
 let empty = { root_dir = "/"; files = Map.empty (module String) }
