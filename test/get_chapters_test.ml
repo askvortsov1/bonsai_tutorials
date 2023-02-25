@@ -13,11 +13,10 @@ let%expect_test "valid project" =
      (Ok
       (((readme "")
         (source
-         ((root_dir ./fixtures/src/valid_project/0_intro)
-          (files ((/.gitkeep ()))))))
+         ((root_dir fixtures/src/valid_project/0_intro) (files ((/.gitkeep ()))))))
        ((readme "")
         (source
-         ((root_dir ./fixtures/src/valid_project/1_frontend)
+         ((root_dir fixtures/src/valid_project/1_frontend)
           (files ((/.gitkeep ()))))))))) |}]
 ;;
 
@@ -28,7 +27,9 @@ let%expect_test "nonexistent project" =
     {|
     (chapters
      (Error
-      ("Tutorials directory for project does_not_exist is not a directory, or doesn't exist: ./fixtures/tutorials/does_not_exist"))) |}]
+      ("Tutorials directory is not a directory, doesn't exist, or couldn't be accessed"
+       (tutorials_proj_dir ./fixtures/tutorials/does_not_exist)
+       (project does_not_exist)))) |}]
 ;;
 
 let%expect_test "empty project" =
@@ -38,7 +39,8 @@ let%expect_test "empty project" =
     {|
     (chapters
      (Error
-      ("Tutorials directory for project empty is not a directory, or doesn't exist: ./fixtures/tutorials/empty"))) |}]
+      ("Tutorials directory is not a directory, doesn't exist, or couldn't be accessed"
+       (tutorials_proj_dir ./fixtures/tutorials/empty) (project empty)))) |}]
 ;;
 
 let%expect_test "project without source" =
@@ -48,7 +50,9 @@ let%expect_test "project without source" =
     {|
     (chapters
      (Error
-      ("Source directory for project missing_project_src is not a directory, or doesn't exist: ./fixtures/src/missing_project_src"))) |}]
+      ("Source directory is not a directory, doesn't exist, or couldn't be accessed"
+       (tutorials_proj_dir ./fixtures/tutorials/missing_project_src)
+       (project missing_project_src)))) |}]
 ;;
 
 let%expect_test "chapter without source" =
@@ -58,7 +62,8 @@ let%expect_test "chapter without source" =
     {|
     (chapters
      (Error
-      ("File ./fixtures/src/missing_chapter_src/1_has_no_source_dir does not exist"))) |}]
+      (errors
+       ("File ./fixtures/src/missing_chapter_src/1_has_no_source_dir does not exist")))) |}]
 ;;
 
 let%expect_test "missing chapter" =
@@ -66,8 +71,13 @@ let%expect_test "missing chapter" =
   print_s [%message (chapters : Infra_src.Chapter.t list Or_error.t)];
   [%expect
     {|
-    (missing_chapters (1 2))
     (chapters
      (Error
-      ("Chapter #1 is missing. All chapters: 0_intro, 2_backend, 4_wormholes"))) |}]
+      ("Chapter is missing" (missing_chapter 1)
+       (chapter_names
+        (((i 0) (name intro) (src_dirname 0_intro) (readme_name 0_intro.md))
+         ((i 2) (name backend) (src_dirname 2_backend)
+          (readme_name 2_backend.md))
+         ((i 4) (name wormholes) (src_dirname 4_wormholes)
+          (readme_name 4_wormholes.md))))))) |}]
 ;;

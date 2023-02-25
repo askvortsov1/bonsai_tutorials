@@ -59,7 +59,7 @@ end
 
 let serialize = String.concat ~sep:"\n"
 
-let reset_workbench ?(preserve_archive=false) ~tutorials_dir ~src_dir ~workbench_dir ~project ~chapter_index =
+let reset_workbench ~preserve_archive ~tutorials_dir ~src_dir ~workbench_dir ~project ~chapter_index =
   let open Or_error.Let_syntax in
   let%bind all_chapters = Private.get_chapters ~tutorials_dir ~src_dir ~project in
   match List.nth all_chapters chapter_index with

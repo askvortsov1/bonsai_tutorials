@@ -4,7 +4,7 @@ module Mem_fs = Mem_fs
 module Fs_util = Fs_util
 
 val reset_workbench :
-   ?preserve_archive:bool ->
+   preserve_archive:bool ->
    tutorials_dir:string ->
    src_dir:string ->
    workbench_dir:string ->
