@@ -1,0 +1,5 @@
+(executables
+ (names main)
+ (libraries infra_src core_unix.command_unix)
+ (preprocess
+  (pps ppx_jane)))
