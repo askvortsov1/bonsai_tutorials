@@ -10,7 +10,7 @@ let to_file_list t = Map.to_alist t.files
 
 let of_file_list root_dir files =
   match Map.of_alist (module String) files with
-  | `Duplicate_key key -> Or_error.error_s [%message "Duplicate key" (key : string)]
+  | `Duplicate_key path -> Or_error.error_s [%message "Duplicate path" (path : string)]
   | `Ok files ->
     let rel_root_dir = Fs_util.relativize_path root_dir in
     Or_error.return { root_dir = rel_root_dir; files }
@@ -45,6 +45,15 @@ let persist_to_fs ?(clear = false) t =
 let map t ~f =
   let new_files = Map.mapi ~f:(fun ~key ~data -> f ~path:key data) t.files in
   { t with files = new_files }
+;;
+
+let rename t ~f =
+  let renamed = Map.map_keys (module String) t.files ~f in
+  match renamed with
+  | `Duplicate_key path ->
+    Or_error.error_s
+      [%message "Multiple files have the same path after renaming" (path : string)]
+  | `Ok x -> Or_error.return { t with files = x }
 ;;
 
 let diff a b =

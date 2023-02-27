@@ -91,7 +91,7 @@ let reset_workbench
         Or_error.return (Mem_fs.mount curr backup_dir))
       else Or_error.return Mem_fs.empty
     in
-    let cleaned_chapter = Chapter.clean chapter in
+    let%bind cleaned_chapter = Chapter.clean chapter in
     let source = Mem_fs.mount cleaned_chapter.source workbench_proj_dir in
     let source_write = Mem_fs.persist_to_fs ~clear:true source
     and backup_write = Mem_fs.persist_to_fs ~clear:make_backup backup in
@@ -120,9 +120,9 @@ let save_diffs ~tutorials_dir ~src_dir ~diffs_dir ~project =
   let open Or_error.Let_syntax in
   let%bind all_chapters = Private.get_chapters ~tutorials_dir ~src_dir ~project in
   let diffs_proj_dir = Filename.concat diffs_dir project in
+  let%bind cleaned_chapters = all_chapters |> List.map ~f:Chapter.clean |> Or_error.all in
   let%bind diffs_fs =
-    all_chapters
-    |> List.map ~f:Chapter.clean
+    cleaned_chapters
     |> gen_diffs
     |> List.map ~f:serialize_chapter_diffs
     |> List.mapi ~f:(fun i x -> sprintf "%d_to_%d.patch" i (i + 1), x)

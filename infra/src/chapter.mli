@@ -7,8 +7,12 @@ type t =
 [@@deriving sexp]
 
 (** [clean t] removes all infra-related annotations, such as
-    MDX comment lines. *)
-val clean : t -> t
+    MDX comment lines.
+    Because tutorial chapter sources must have differently named
+    .opam files so that all can build at once, convention is to name them
+    [project_name][chapter_index].opam. We want to strip out the
+    [chapter_index] suffix. *)
+val clean : t -> t Or_error.t
 
 module Name : sig
   type t =

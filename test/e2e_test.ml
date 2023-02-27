@@ -82,7 +82,8 @@ let%expect_test "reset workbench" =
           \n    Start.Result_spec.just_the_view\
           \n    ~bind_to_element_with_id:\"app\"\
           \n    Counter.component\
-          \n;;")))))) |}]
+          \n;;")
+         (/valid_project.opam "opam-version: \"2.0\"")))))) |}]
 ;;
 
 let%expect_test "save diffs invalid project" =
@@ -152,7 +153,10 @@ let%expect_test "save diffs" =
           \n\
           \n==== /new.ml ====\
           \n-1,0 +1,1\
-          \n+|let this_file_was_created = \"to test diffs\"")
+          \n+|let this_file_was_created = \"to test diffs\"\
+          \n\
+          \n==== /valid_project.opam ====\
+          \n")
          (/1_to_2.patch
            "==== /counter.ml ====\
           \n-1,19 +1,39\
@@ -225,5 +229,8 @@ let%expect_test "save diffs" =
           \n\
           \n==== /new.ml ====\
           \n-1,1 +1,0\
-          \n-|let this_file_was_created = \"to test diffs\"")))))) |}]
+          \n-|let this_file_was_created = \"to test diffs\"\
+          \n\
+          \n==== /valid_project.opam ====\
+          \n")))))) |}]
 ;;

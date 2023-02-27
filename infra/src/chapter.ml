@@ -9,13 +9,21 @@ type t =
 let mdx_prefix = "(* $MDX"
 
 let clean chapter =
-  let clean ~path:_ contents =
+  let clean_mdx ~path:_ contents =
     contents
     |> String.split_lines
     |> List.filter ~f:(fun l -> not (String.is_prefix ~prefix:mdx_prefix l))
     |> String.concat ~sep:"\n"
   in
-  { chapter with source = Mem_fs.map ~f:clean chapter.source }
+  let trim_opam_suffix =
+    let opam_regex = Re.compile (Re.Posix.re "([a-zA-Z_-])[0-9]*\\.opam") in
+    Re.replace opam_regex ~f:(fun g -> sprintf "%s.opam" (Re.Group.get g 1))
+  in
+  let open Or_error.Let_syntax in
+  let%bind cleaned_source =
+    chapter.source |> Mem_fs.map ~f:clean_mdx |> Mem_fs.rename ~f:trim_opam_suffix
+  in
+  return { chapter with source = cleaned_source }
 ;;
 
 module Name = struct

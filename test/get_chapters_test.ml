@@ -31,7 +31,8 @@ let%expect_test "valid project" =
              \n    ~bind_to_element_with_id:\"app\"\
              \n    Counter.component\
              \n;;\
-             \n"))))))
+             \n")
+            (/valid_project0.opam "opam-version: \"2.0\""))))))
        ((readme "")
         (source
          ((root_dir fixtures/src/valid_project/1_raw_state)
@@ -72,7 +73,8 @@ let%expect_test "valid project" =
              \n    Counter.component\
              \n;;\
              \n")
-            (/new.ml "let this_file_was_created = \"to test diffs\""))))))
+            (/new.ml "let this_file_was_created = \"to test diffs\"")
+            (/valid_project1.opam "opam-version: \"2.0\""))))))
        ((readme "")
         (source
          ((root_dir fixtures/src/valid_project/2_state_machine)
@@ -130,7 +132,8 @@ let%expect_test "valid project" =
              \n    ~bind_to_element_with_id:\"app\"\
              \n    Counter.component\
              \n;;\
-             \n"))))))))) |}]
+             \n")
+            (/valid_project2.opam "opam-version: \"2.0\""))))))))) |}]
 ;;
 
 let%expect_test "nonexistent project" =

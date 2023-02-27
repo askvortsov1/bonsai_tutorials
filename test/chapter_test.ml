@@ -33,7 +33,7 @@ let%expect_test "Name.resolve" =
   [%expect {| (no_ext ()) |}]
 ;;
 
-let%expect_test "clean" =
+let%expect_test "clean mdx" =
   let open Or_error.Let_syntax in
   let clean_chapter_with_mdx =
     let with_mdx_lines =
@@ -43,7 +43,7 @@ something else
 (* $MDX part-end) |}
     in
     let%bind source = Infra_src.Mem_fs.of_file_list "" [ "", with_mdx_lines ] in
-    let cleaned = clean { readme = ""; source } in
+    let%bind cleaned = clean { readme = ""; source } in
     Or_error.return cleaned
   in
   print_s [%message (clean_chapter_with_mdx : t Or_error.t)];
