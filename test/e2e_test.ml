@@ -73,9 +73,7 @@ let%expect_test "reset workbench" =
            "open! Core\
           \nopen Bonsai_web\
           \n\
-          \n(* $MDX part-begin=hello_world *)\
-          \nlet component = Computation.return (Vdom.Node.text \"Hello World\")\
-          \n(* $MDX part-end *)")
+          \nlet component = Computation.return (Vdom.Node.text \"Hello World\")")
          (/main.ml
            "open Bonsai_web\
           \n\
@@ -84,8 +82,7 @@ let%expect_test "reset workbench" =
           \n    Start.Result_spec.just_the_view\
           \n    ~bind_to_element_with_id:\"app\"\
           \n    Counter.component\
-          \n;;\
-          \n")))))) |}]
+          \n;;")))))) |}]
 ;;
 
 let%expect_test "save diffs invalid project" =
@@ -116,13 +113,11 @@ let%expect_test "save diffs" =
        (files
         ((/0_to_1.patch
            "==== /counter.ml ====\
-          \n-1,6 +1,21\
+          \n-1,4 +1,19\
           \n  open! Core\
           \n-|open Bonsai_web\
           \n+|open! Import\
           \n  \
-          \n-|(* $MDX part-begin=hello_world *)\
-          \n+|(* $MDX part-begin=loose_state *)\
           \n-|let component = Computation.return (Vdom.Node.text \"Hello World\")\
           \n+|let component ~label () =\
           \n+|  let%sub count, set_count = Bonsai.state (module Int) (module Action) ~default_model:0 in\
@@ -140,7 +135,6 @@ let%expect_test "save diffs" =
           \n+|  in\
           \n+|  view, state\
           \n+|;;\
-          \n  (* $MDX part-end *)\
           \n\
           \n==== /main.ml ====\
           \n-1,8 +1,11\
@@ -161,7 +155,7 @@ let%expect_test "save diffs" =
           \n+|let this_file_was_created = \"to test diffs\"")
          (/1_to_2.patch
            "==== /counter.ml ====\
-          \n-1,21 +1,41\
+          \n-1,19 +1,39\
           \n  open! Core\
           \n  open! Import\
           \n+|open Bonsai_web\
@@ -178,30 +172,28 @@ let%expect_test "save diffs" =
           \n+|  | Action.Incr -> model + by\
           \n+|  | Decr -> model - by\
           \n+|;;\
-          \n-|(* $MDX part-begin=loose_state *)\
-          \n+|\
-          \n+|(* $MDX part-begin=index_html *)\
           \n-|let component ~label () =\
           \n-|  let%sub count, set_count = Bonsai.state (module Int) (module Action) ~default_model:0 in\
-          \n-|  let%arr count = count\
-          \n-|  and set_count = set_count\
-          \n-|  and label = label in\
+          \n+|\
           \n+|let component ~label ?(by = Value.return 1) () =\
           \n+|  let module N = Vdom.Node in\
           \n+|  let module A = Vdom.Attr in\
           \n+|  let%sub state_and_inject =\
           \n+|    Bonsai.state_machine1 (module Int) (module Action) ~default_model:0 ~apply_action by\
           \n+|  in\
+          \n-|  let%arr count = count\
+          \n-|  and set_count = set_count\
           \n+|  let%arr state, inject = state_and_inject\
           \n+|  and by = by\
-          \n+|  and label = label in\
-          \n+|  let button op action =\
-          \n+|    N.button ~attr:(A.on_click (fun _ -> inject action)) [ N.textf \"%s%d\" op by ]\
-          \n+|  in\
+          \n-|  and label = label in\
           \n-|  let view =\
           \n-|    Vdom.Node.(\
           \n-|      div\
           \n-|        [ span [ textf \"%s: \" label ]\
+          \n+|  and label = label in\
+          \n+|  let button op action =\
+          \n+|    N.button ~attr:(A.on_click (fun _ -> inject action)) [ N.textf \"%s%d\" op by ]\
+          \n+|  in\
           \n+|  let view =\
           \n+|    N.div\
           \n+|      [ N.span [ N.textf \"%s: \" label ]\
@@ -216,7 +208,6 @@ let%expect_test "save diffs" =
           \n    in\
           \n    view, state\
           \n  ;;\
-          \n  (* $MDX part-end *)\
           \n\
           \n==== /main.ml ====\
           \n-1,11 +1,9\
