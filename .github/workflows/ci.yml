@@ -2,18 +2,16 @@
 
 name: CI
 
-# Controls when the action will run. 
+# Controls when the action will run.
 on:
   # Triggers the workflow on push or pull request events but only for the main branch
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
-
-
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
@@ -38,24 +36,29 @@ jobs:
         uses: ocaml/setup-ocaml@v2
         with:
           ocaml-compiler: ${{ matrix.ocaml-compiler }}
-            
+
       ### Bonsai bleeding release is currently broken
       # - name: Set up source repos
-      #   run: | 
+      #   run: |
       #     opam repo add janestreet-bleeding https://ocaml.janestreet.com/opam-repository
       #     opam repo add janestreet-bleeding-external https://github.com/janestreet/opam-repository.git#external-packages
       #     eval $(opam env)
-        
+
       - name: Install Deps
-        run: | 
+        run: |
           opam install --yes . src/todo_list/0_hello_world
           eval $(opam env)
-        
+
       - name: Build
         run: opam exec -- dune build
-        
+
       - name: Format
         run: opam exec -- dune build @fmt
-        
+
       - name: Test
         run: opam exec -- dune test
+
+      - name: Assert generated matches
+        run: |
+          ./regen_clean.sh
+          git diff-files --quiet
