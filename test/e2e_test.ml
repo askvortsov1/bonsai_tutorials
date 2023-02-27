@@ -81,7 +81,8 @@ let%expect_test "save diffs invalid project" =
   let project = "this_project_doesn't_exist" in
   let result = save_diffs ~tutorials_dir ~src_dir ~diffs_dir ~project in
   print_s [%message (result : unit Or_error.t)];
-  [%expect {|
+  [%expect
+    {|
     (result
      (Error
       ("Tutorials directory is not a directory, doesn't exist, or couldn't be accessed"
