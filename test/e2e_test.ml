@@ -50,8 +50,6 @@ let%expect_test "reset workbench invalid chapter" =
 
 let%expect_test "reset workbench" =
   let project = "valid_project" in
-  let get_workbench () = Mem_fs.read_from_dir (Filename.concat workbench_dir project) in
-  let prev_workbench = get_workbench () in
   let reset_0 =
     reset_workbench
       ~make_backup:false
@@ -63,18 +61,31 @@ let%expect_test "reset workbench" =
   in
   print_s [%message (reset_0 : unit Or_error.t)];
   [%expect {| (reset_0 (Ok ())) |}];
-  let diff =
-    let open Or_error.Let_syntax in
-    let curr_workbench = get_workbench () in
-    let%bind curr_workbench = curr_workbench
-    and prev_workbench = prev_workbench in
-    Or_error.return (Mem_fs.diff prev_workbench curr_workbench)
-  in
-  print_s [%message (diff : string Map.M(String).t Or_error.t)];
+  let curr_workbench = Mem_fs.read_from_dir (Filename.concat workbench_dir project) in
+  print_s [%message (curr_workbench : string Mem_fs.t Or_error.t)];
   [%expect
     {|
-    (diff
-     (Error (errors ("File ./fixtures/workbench/valid_project does not exist")))) |}]
+    (curr_workbench
+     (Ok
+      ((root_dir fixtures/workbench/valid_project)
+       (files
+        ((/counter.ml
+           "open! Core\
+          \nopen Bonsai_web\
+          \n\
+          \n(* $MDX part-begin=hello_world *)\
+          \nlet component = Computation.return (Vdom.Node.text \"Hello World\")\
+          \n(* $MDX part-end *)")
+         (/main.ml
+           "open Bonsai_web\
+          \n\
+          \nlet (_ : _ Start.Handle.t) =\
+          \n  Start.start\
+          \n    Start.Result_spec.just_the_view\
+          \n    ~bind_to_element_with_id:\"app\"\
+          \n    Counter.component\
+          \n;;\
+          \n")))))) |}]
 ;;
 
 let%expect_test "save diffs invalid project" =
