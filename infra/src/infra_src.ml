@@ -3,6 +3,8 @@ module Chapter = Chapter
 module Mem_fs = Mem_fs
 module Fs_util = Fs_util
 
+let serialize = String.concat ~sep:"\n"
+
 module Private = struct
   let get_chapters ~tutorials_dir ~src_dir ~project =
     let tutorials_proj_dir = Filename.concat tutorials_dir project in
@@ -55,9 +57,13 @@ module Private = struct
               Or_error.map source ~f:(fun source -> { Chapter.readme; source }))
          |> Or_error.all)
   ;;
-end
 
-let serialize = String.concat ~sep:"\n"
+  let project_backup_dir ~workbench_dir ~project =
+    let now = Time_ns.now () in
+    let now_str = Time_ns.to_string_abs_trimmed ~zone:Time.Zone.utc now in
+    Filename.concat workbench_dir (sprintf "%s-backup-%s" project now_str)
+  ;;
+end
 
 let reset_workbench
   ~make_backup
@@ -83,11 +89,7 @@ let reset_workbench
       if make_backup
       then (
         let%bind curr = Mem_fs.read_from_dir ~f:String.split_lines workbench_proj_dir in
-        let now = Time_ns.now () in
-        let now_str = Time_ns.to_string_abs_trimmed ~zone:Time.Zone.utc now in
-        let backup_dir =
-          Filename.concat workbench_dir (sprintf "%s-backup-%s" project now_str)
-        in
+        let backup_dir = Private.project_backup_dir ~workbench_dir ~project in
         Or_error.return (Mem_fs.mount curr backup_dir))
       else Or_error.return Mem_fs.empty
     in
@@ -97,9 +99,35 @@ let reset_workbench
     Or_error.all_unit [ source_write; backup_write ]
 ;;
 
-(* let save_diffs ~tutorials_dir ~src_dir ~diffs_dir ~project = *)
-(* Pull in all chapters in the project *)
-(* Chapter.clean () *)
-(* validate that all chapters have corresponding docs and vice versa *)
-(* Generate diffs from chapter to chapter *)
-(* Write diffs to files *)
+let gen_diffs chapters =
+  let rec loop result (chapters : Chapter.t list) =
+    match chapters with
+    | a :: b :: cs ->
+      let diff =
+        Mem_fs.diff ~serialize:(fun ~path:_ x -> serialize x) a.source b.source
+      in
+      loop (diff :: result) (b :: cs)
+    | _ :: [] | [] -> result
+  in
+  List.rev (loop [] chapters)
+;;
+
+let serialize_chapter_diffs diff =
+  diff
+  |> Map.to_alist
+  |> List.map ~f:(fun (path, diff) -> sprintf "==== %s ====\n%s" path diff)
+  |> String.concat ~sep:"\n\n"
+;;
+
+let save_diffs ~tutorials_dir ~src_dir ~diffs_dir ~project =
+  let open Or_error.Let_syntax in
+  let%bind all_chapters = Private.get_chapters ~tutorials_dir ~src_dir ~project in
+  let diffs_proj_dir = Filename.concat diffs_dir project in
+  let%bind diffs_fs =
+    gen_diffs all_chapters
+    |> List.map ~f:serialize_chapter_diffs
+    |> List.mapi ~f:(fun i x -> sprintf "%d_to_%d.patch" i (i + 1), x)
+    |> Mem_fs.of_file_list diffs_proj_dir
+  in
+  Mem_fs.persist_to_fs ~clear:true ~f:Fn.id diffs_fs
+;;

@@ -9,7 +9,7 @@ type t =
 let mdx_prefix = "(* $MDX"
 
 let clean chapter =
-  let clean ~path:_ ~contents =
+  let clean ~path:_ contents =
     contents |> List.filter ~f:(fun l -> not (String.is_prefix ~prefix:mdx_prefix l))
   in
   { chapter with source = Mem_fs.map ~f:clean chapter.source }

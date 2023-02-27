@@ -27,7 +27,15 @@ val read_from_dir : ?exclude:Re.re -> f:(string -> 'a) -> string -> 'a t Or_erro
 val persist_to_fs : ?clear:bool -> 'a t -> f:('a -> string) -> unit Or_error.t
 
 (** [map t ~f] applies `f` to every file in `t`. *)
-val map : 'a t -> f:(path:string -> contents:'a -> 'b) -> 'b t
+val map : 'a t -> f:(path:string -> 'a -> 'b) -> 'b t
+
+(** [diff a b] generates ASCII diffs via patdiff, comparing the files between 2
+    `Mem_fs.t`s. *)
+val diff
+  :  serialize:(path:string -> 'a -> string)
+  -> 'a t
+  -> 'a t
+  -> string Map.M(String).t
 
 (** [root_dir t] gets the root directory of t. *)
 val root_dir : 'a t -> string
@@ -38,7 +46,7 @@ val mount : 'a t -> string -> 'a t
 (** [to_file_list t] returns a list of (path, serialized_file) tuples. *)
 val to_file_list : 'a t -> (string * 'a) list
 
-(** [to_file_list root_dir files] constructs a Mem_fs from a root directory
+(** [of_file_list root_dir files] constructs a Mem_fs from a root directory
     and a list of (path, serialized_file) tuples. *)
 val of_file_list : string -> (string * 'a) list -> 'a t Or_error.t
 

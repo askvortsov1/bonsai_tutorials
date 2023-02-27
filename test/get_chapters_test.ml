@@ -13,11 +13,58 @@ let%expect_test "valid project" =
      (Ok
       (((readme "")
         (source
-         ((root_dir fixtures/src/valid_project/0_intro) (files ((/.gitkeep ()))))))
+         ((root_dir fixtures/src/valid_project/0_intro)
+          (files
+           ((/counter.ml
+             ("open! Core" "open Bonsai_web" "open Bonsai.Let_syntax" ""
+              "(* $MDX part-begin=index_html *)" "module Model = struct"
+              "  type t = unit Int.Map.t [@@deriving sexp, equal]" end ""
+              "let add_counter_component =" "  let%sub add_counter_state ="
+              "    Bonsai.state_machine0" "      (module Model)"
+              "      (module Unit)" "      ~default_model:Int.Map.empty"
+              "      ~apply_action:(fun ~inject:_ ~schedule_event:_ model () ->"
+              "        let key = Map.length model in"
+              "        Map.add_exn model ~key ~data:())" "  in"
+              "  let%arr state, inject = add_counter_state in" "  let view ="
+              "    Vdom.Node.button"
+              "      ~attr:(Vdom.Attr.on_click (fun _ -> inject ()))"
+              "      [ Vdom.Node.text \"Add Another Counter\" ]" "  in"
+              "  state, view" ";;" "(* $MDX part-end *)"))
+            (/main.ml
+             ("open Bonsai_web" "open Bonsai_web_counters_example" ""
+              "let (_ : _ Start.Handle.t) ="
+              "  Start.start Start.Result_spec.just_the_view ~bind_to_element_with_id:\"app\" application"
+              ";;")))))))
        ((readme "")
         (source
          ((root_dir fixtures/src/valid_project/1_frontend)
-          (files ((/.gitkeep ()))))))))) |}]
+          (files
+           ((/.gitkeep ())
+            (/counter.ml
+             ("open! Core" "open! Import" "" "module Action = struct"
+              "  type t =" "    | Incr" "    | Decr" "  [@@deriving sexp_of]" end
+              ""
+              "let apply_action ~inject:_ ~schedule_event:_ by model = function"
+              "  | Action.Incr -> model + by" "  | Decr -> model - by" ";;" ""
+              "(* $MDX part-begin=index_html *)"
+              "let component ~label ?(by = Value.return 1) () ="
+              "  let%sub state_and_inject ="
+              "    Bonsai.state_machine1 (module Int) (module Action) ~default_model:0 ~apply_action by"
+              "  in" "  let%arr state, inject = state_and_inject" "  and by = by"
+              "  and label = label in" "  let button op action ="
+              "    N.button ~attr:(A.on_click (fun _ -> inject action)) [ N.textf \"%s%d\" op by ]"
+              "  in" "  let view =" "    N.div"
+              "      [ Vdom.Node.span [ N.textf \"%s: \" label ]"
+              "      ; button \"-\" Decr"
+              "      ; Vdom.Node.span [ N.textf \"%d\" state ]"
+              "      ; button \"+\" Incr" "      ]" "  in" "  view, state" ";;"
+              "(* $MDX part-end *)"))
+            (/main.ml
+             ("open Bonsai_web" "open Bonsai_web_counters_example" ""
+              "let this_is_here_for_the_diff = \"What if sandworms were Camels?\""
+              "" "let (_ : _ Start.Handle.t) ="
+              "  Start.start Start.Result_spec.just_the_view ~bind_to_element_with_id:\"app\" application"
+              ";;")))))))))) |}]
 ;;
 
 let%expect_test "nonexistent project" =

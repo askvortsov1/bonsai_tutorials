@@ -9,6 +9,7 @@ depends: [
   "core"
   "core_unix"
   "re"
+  "patdiff"
   "ppx_jane"
   "ppx_typed_fields"
   "odoc" {with-doc}

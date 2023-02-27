@@ -44,10 +44,24 @@ let persist_to_fs ?(clear = false) t ~f =
 ;;
 
 let map t ~f =
-  let new_files = Map.mapi ~f:(fun ~key ~data -> f ~path:key ~contents:data) t.files in
+  let new_files = Map.mapi ~f:(fun ~key ~data -> f ~path:key data) t.files in
   { t with files = new_files }
+;;
+
+let diff ~serialize a b =
+  Map.merge
+    (map a ~f:serialize).files
+    (map b ~f:serialize).files
+    ~f:(fun ~key:_ element ->
+    let f_a, f_b =
+      match element with
+      | `Both (f_a, f_b) -> f_a, f_b
+      | `Left f_a -> f_a, ""
+      | `Right f_b -> "", f_b
+    in
+    Some (Expect_test_patdiff.patdiff f_a f_b))
 ;;
 
 let root_dir t = t.root_dir
 let mount t new_root_dir = { t with root_dir = Fs_util.relativize_path new_root_dir }
-let empty = { root_dir = "/"; files = Map.empty (module String) }
+let empty = { root_dir = "/dev/null"; files = Map.empty (module String) }
