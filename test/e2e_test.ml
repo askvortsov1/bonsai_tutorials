@@ -1,17 +1,13 @@
 open! Core
 open Infra_src
 
-(* let src_dir = "../src"
-let tutorials_dir = "../tutorials"
-let workbench_dir = "../workbench"
-let serialize ~path:_ f = String.concat ~sep:"\n" f
+let tutorials_dir = "./fixtures/tutorials"
+let src_dir = "./fixtures/src"
+let workbench_dir = "./fixtures/workbench"
+let diffs_dir = "./fixtures/diffs"
 
-let%expect_test "reset workbench" =
-  let get_workbench () =
-    Mem_fs.read_from_dir ~f:String.split_lines "../workbench/todo_list"
-  in
-  let prev_workbench = get_workbench () in
-  let project = "todo_list" in
+let%expect_test "reset workbench invalid project" =
+  let project = "nonexistent_project" in
   let reset_0 =
     reset_workbench
       ~make_backup:false
@@ -22,35 +18,82 @@ let%expect_test "reset workbench" =
       ~chapter_index:0
   in
   print_s [%message (reset_0 : unit Or_error.t)];
-  [%expect {||}];
+  [%expect
+    {|
+    (reset_0
+     (Error
+      ("Tutorials directory is not a directory, doesn't exist, or couldn't be accessed"
+       (tutorials_proj_dir ./fixtures/tutorials/nonexistent_project)
+       (project nonexistent_project)))) |}]
+;;
+
+let%expect_test "reset workbench invalid chapter" =
+  let project = "nonexistent_chapter" in
+  let reset_5 =
+    reset_workbench
+      ~make_backup:false
+      ~tutorials_dir
+      ~src_dir
+      ~workbench_dir
+      ~project
+      ~chapter_index:5
+  in
+  print_s [%message (reset_5 : unit Or_error.t)];
+  [%expect
+    {|
+    (reset_5
+     (Error
+      ("Tutorials directory is not a directory, doesn't exist, or couldn't be accessed"
+       (tutorials_proj_dir ./fixtures/tutorials/nonexistent_chapter)
+       (project nonexistent_chapter)))) |}]
+;;
+
+let%expect_test "reset workbench" =
+  let project = "valid_project" in
+  let get_workbench () = Mem_fs.read_from_dir (Filename.concat workbench_dir project) in
+  let prev_workbench = get_workbench () in
+  let reset_0 =
+    reset_workbench
+      ~make_backup:false
+      ~tutorials_dir
+      ~src_dir
+      ~workbench_dir
+      ~project
+      ~chapter_index:0
+  in
+  print_s [%message (reset_0 : unit Or_error.t)];
+  [%expect {| (reset_0 (Ok ())) |}];
   let diff =
     let open Or_error.Let_syntax in
     let curr_workbench = get_workbench () in
     let%bind curr_workbench = curr_workbench
     and prev_workbench = prev_workbench in
-    Or_error.return (Mem_fs.diff ~serialize prev_workbench curr_workbench)
+    Or_error.return (Mem_fs.diff prev_workbench curr_workbench)
   in
   print_s [%message (diff : string Map.M(String).t Or_error.t)];
   [%expect
     {|
-    (files
-     (Ok
-      (./fixtures/read_env/file.ml ./fixtures/read_env/poem.txt
-       ./fixtures/read_env/file/README.md
-       ./fixtures/read_env/file/nested2/nested3/leaf
-       ./fixtures/read_env/file/nested2/leaf
-       "./fixtures/read_env/file/spaces in file name.txt"
-       ./fixtures/read_env/dune))) |}]
-;; *)
-let tutorials_dir = "./fixtures/tutorials"
-let src_dir = "./fixtures/src"
-let diffs_dir = "./fixtures/diffs"
+    (diff
+     (Error (errors ("File ./fixtures/workbench/valid_project does not exist")))) |}]
+;;
+
+let%expect_test "save diffs invalid project" =
+  let project = "this_project_doesn't_exist" in
+  let result = save_diffs ~tutorials_dir ~src_dir ~diffs_dir ~project in
+  print_s [%message (result : unit Or_error.t)];
+  [%expect {|
+    (result
+     (Error
+      ("Tutorials directory is not a directory, doesn't exist, or couldn't be accessed"
+       (tutorials_proj_dir ./fixtures/tutorials/this_project_doesn't_exist)
+       (project this_project_doesn't_exist)))) |}]
+;;
 
 let%expect_test "save diffs" =
   let project = "valid_project" in
-  let reset_0 = save_diffs ~tutorials_dir ~src_dir ~diffs_dir ~project in
-  print_s [%message (reset_0 : unit Or_error.t)];
-  [%expect {| (reset_0 (Ok ())) |}];
+  let result = save_diffs ~tutorials_dir ~src_dir ~diffs_dir ~project in
+  print_s [%message (result : unit Or_error.t)];
+  [%expect {| (result (Ok ())) |}];
   let diffs_fs = Mem_fs.read_from_dir (Filename.concat diffs_dir project) in
   print_s [%message (diffs_fs : string Mem_fs.t Or_error.t)];
   [%expect
@@ -60,15 +103,57 @@ let%expect_test "save diffs" =
       ((root_dir fixtures/diffs/valid_project)
        (files
         ((/0_to_1.patch
-           "==== /.gitkeep ====\
-          \n\
-          \n\
-          \n==== /counter.ml ====\
-          \n-1,28 +1,37\
+           "==== /counter.ml ====\
+          \n-1,6 +1,21\
           \n  open! Core\
           \n-|open Bonsai_web\
-          \n-|open Bonsai.Let_syntax\
           \n+|open! Import\
+          \n  \
+          \n-|(* $MDX part-begin=hello_world *)\
+          \n+|(* $MDX part-begin=loose_state *)\
+          \n-|let component = Computation.return (Vdom.Node.text \"Hello World\")\
+          \n+|let component ~label () =\
+          \n+|  let%sub count, set_count = Bonsai.state (module Int) (module Action) ~default_model:0 in\
+          \n+|  let%arr count = count\
+          \n+|  and set_count = set_count\
+          \n+|  and label = label in\
+          \n+|  let view =\
+          \n+|    Vdom.Node.(\
+          \n+|      div\
+          \n+|        [ span [ textf \"%s: \" label ]\
+          \n+|        ; button ~attr:(Vdom.Attr.on_click (fun _ -> set_count (count - 1))) [ text \"-\" ]\
+          \n+|        ; span [ textf \"%d\" count ]\
+          \n+|        ; button ~attr:(Vdom.Attr.on_click (fun _ -> set_count (count + 1))) [ text \"+\" ]\
+          \n+|        ])\
+          \n+|  in\
+          \n+|  view, state\
+          \n+|;;\
+          \n  (* $MDX part-end *)\
+          \n\
+          \n==== /main.ml ====\
+          \n-1,8 +1,11\
+          \n  open Bonsai_web\
+          \n+|open Bonsai_web_counters_example\
+          \n+|\
+          \n+|let this_is_here_for_the_diff = \"What if sandworms were Camels?\"\
+          \n  \
+          \n  let (_ : _ Start.Handle.t) =\
+          \n    Start.start\
+          \n      Start.Result_spec.just_the_view\
+          \n      ~bind_to_element_with_id:\"app\"\
+          \n      Counter.component\
+          \n  ;;\
+          \n\
+          \n==== /new.ml ====\
+          \n-1,0 +1,1\
+          \n+|let this_file_was_created = \"to test diffs\"")
+         (/1_to_2.patch
+           "==== /counter.ml ====\
+          \n-1,21 +1,41\
+          \n  open! Core\
+          \n  open! Import\
+          \n+|open Bonsai_web\
+          \n+|open Bonsai.Let_syntax\
           \n+|\
           \n+|module Action = struct\
           \n+|  type t =\
@@ -81,32 +166,19 @@ let%expect_test "save diffs" =
           \n+|  | Action.Incr -> model + by\
           \n+|  | Decr -> model - by\
           \n+|;;\
-          \n-|\
-          \n-|(* $MDX part-begin=index_html *)\
-          \n-|module Model = struct\
-          \n-|  type t = unit Int.Map.t [@@deriving sexp, equal]\
-          \n-|end\
-          \n-|\
-          \n-|let add_counter_component =\
-          \n-|  let%sub add_counter_state =\
+          \n-|(* $MDX part-begin=loose_state *)\
           \n+|\
           \n+|(* $MDX part-begin=index_html *)\
+          \n-|let component ~label () =\
+          \n-|  let%sub count, set_count = Bonsai.state (module Int) (module Action) ~default_model:0 in\
+          \n-|  let%arr count = count\
+          \n-|  and set_count = set_count\
+          \n-|  and label = label in\
           \n+|let component ~label ?(by = Value.return 1) () =\
+          \n+|  let module N = Vdom.Node in\
+          \n+|  let module A = Vdom.Attr in\
           \n+|  let%sub state_and_inject =\
-          \n-|    Bonsai.state_machine0\
-          \n-|      (module Model)\
-          \n-|      (module Unit)\
-          \n-|      ~default_model:Int.Map.empty\
-          \n-|      ~apply_action:(fun ~inject:_ ~schedule_event:_ model () ->\
-          \n-|        let key = Map.length model in\
-          \n-|        Map.add_exn model ~key ~data:())\
           \n+|    Bonsai.state_machine1 (module Int) (module Action) ~default_model:0 ~apply_action by\
-          \n-|  in\
-          \n-|  let%arr state, inject = add_counter_state in\
-          \n-|  let view =\
-          \n-|    Vdom.Node.button\
-          \n-|      ~attr:(Vdom.Attr.on_click (fun _ -> inject ()))\
-          \n-|      [ Vdom.Node.text \"Add Another Counter\" ]\
           \n+|  in\
           \n+|  let%arr state, inject = state_and_inject\
           \n+|  and by = by\
@@ -114,27 +186,41 @@ let%expect_test "save diffs" =
           \n+|  let button op action =\
           \n+|    N.button ~attr:(A.on_click (fun _ -> inject action)) [ N.textf \"%s%d\" op by ]\
           \n+|  in\
+          \n-|  let view =\
+          \n-|    Vdom.Node.(\
+          \n-|      div\
+          \n-|        [ span [ textf \"%s: \" label ]\
           \n+|  let view =\
           \n+|    N.div\
-          \n+|      [ Vdom.Node.span [ N.textf \"%s: \" label ]\
+          \n+|      [ N.span [ N.textf \"%s: \" label ]\
+          \n-|        ; button ~attr:(Vdom.Attr.on_click (fun _ -> set_count (count - 1))) [ text \"-\" ]\
+          \n-|        ; span [ textf \"%d\" count ]\
           \n+|      ; button \"-\" Decr\
-          \n+|      ; Vdom.Node.span [ N.textf \"%d\" state ]\
+          \n+|      ; N.span [ N.textf \"%d\" state ]\
+          \n-|        ; button ~attr:(Vdom.Attr.on_click (fun _ -> set_count (count + 1))) [ text \"+\" ]\
+          \n-|        ])\
           \n+|      ; button \"+\" Incr\
           \n+|      ]\
           \n    in\
-          \n-|  state, view\
-          \n+|  view, state\
+          \n    view, state\
           \n  ;;\
           \n  (* $MDX part-end *)\
           \n\
           \n==== /main.ml ====\
-          \n-1,6 +1,8\
+          \n-1,11 +1,9\
           \n  open Bonsai_web\
           \n  open Bonsai_web_counters_example\
           \n  \
-          \n+|let this_is_here_for_the_diff = \"What if sandworms were Camels?\"\
-          \n+|\
+          \n-|let this_is_here_for_the_diff = \"What if sandworms were Camels?\"\
+          \n-|\
           \n  let (_ : _ Start.Handle.t) =\
-          \n    Start.start Start.Result_spec.just_the_view ~bind_to_element_with_id:\"app\" application\
-          \n  ;;")))))) |}]
+          \n    Start.start\
+          \n      Start.Result_spec.just_the_view\
+          \n      ~bind_to_element_with_id:\"app\"\
+          \n      Counter.component\
+          \n  ;;\
+          \n\
+          \n==== /new.ml ====\
+          \n-1,1 +1,0\
+          \n-|let this_file_was_created = \"to test diffs\"")))))) |}]
 ;;

@@ -13,53 +13,75 @@ let%expect_test "valid project" =
      (Ok
       (((readme "")
         (source
-         ((root_dir fixtures/src/valid_project/0_intro)
+         ((root_dir fixtures/src/valid_project/0_hello_world)
           (files
            ((/counter.ml
               "open! Core\
              \nopen Bonsai_web\
-             \nopen Bonsai.Let_syntax\
              \n\
-             \n(* $MDX part-begin=index_html *)\
-             \nmodule Model = struct\
-             \n  type t = unit Int.Map.t [@@deriving sexp, equal]\
-             \nend\
-             \n\
-             \nlet add_counter_component =\
-             \n  let%sub add_counter_state =\
-             \n    Bonsai.state_machine0\
-             \n      (module Model)\
-             \n      (module Unit)\
-             \n      ~default_model:Int.Map.empty\
-             \n      ~apply_action:(fun ~inject:_ ~schedule_event:_ model () ->\
-             \n        let key = Map.length model in\
-             \n        Map.add_exn model ~key ~data:())\
-             \n  in\
-             \n  let%arr state, inject = add_counter_state in\
-             \n  let view =\
-             \n    Vdom.Node.button\
-             \n      ~attr:(Vdom.Attr.on_click (fun _ -> inject ()))\
-             \n      [ Vdom.Node.text \"Add Another Counter\" ]\
-             \n  in\
-             \n  state, view\
-             \n;;\
+             \n(* $MDX part-begin=hello_world *)\
+             \nlet component = Computation.return (Vdom.Node.text \"Hello World\")\
              \n(* $MDX part-end *)")
             (/main.ml
               "open Bonsai_web\
-             \nopen Bonsai_web_counters_example\
              \n\
              \nlet (_ : _ Start.Handle.t) =\
-             \n  Start.start Start.Result_spec.just_the_view ~bind_to_element_with_id:\"app\" application\
+             \n  Start.start\
+             \n    Start.Result_spec.just_the_view\
+             \n    ~bind_to_element_with_id:\"app\"\
+             \n    Counter.component\
              \n;;\
              \n"))))))
        ((readme "")
         (source
-         ((root_dir fixtures/src/valid_project/1_frontend)
+         ((root_dir fixtures/src/valid_project/1_raw_state)
           (files
-           ((/.gitkeep "")
-            (/counter.ml
+           ((/counter.ml
               "open! Core\
              \nopen! Import\
+             \n\
+             \n(* $MDX part-begin=loose_state *)\
+             \nlet component ~label () =\
+             \n  let%sub count, set_count = Bonsai.state (module Int) (module Action) ~default_model:0 in\
+             \n  let%arr count = count\
+             \n  and set_count = set_count\
+             \n  and label = label in\
+             \n  let view =\
+             \n    Vdom.Node.(\
+             \n      div\
+             \n        [ span [ textf \"%s: \" label ]\
+             \n        ; button ~attr:(Vdom.Attr.on_click (fun _ -> set_count (count - 1))) [ text \"-\" ]\
+             \n        ; span [ textf \"%d\" count ]\
+             \n        ; button ~attr:(Vdom.Attr.on_click (fun _ -> set_count (count + 1))) [ text \"+\" ]\
+             \n        ])\
+             \n  in\
+             \n  view, state\
+             \n;;\
+             \n(* $MDX part-end *)\
+             \n")
+            (/main.ml
+              "open Bonsai_web\
+             \nopen Bonsai_web_counters_example\
+             \n\
+             \nlet this_is_here_for_the_diff = \"What if sandworms were Camels?\"\
+             \n\
+             \nlet (_ : _ Start.Handle.t) =\
+             \n  Start.start\
+             \n    Start.Result_spec.just_the_view\
+             \n    ~bind_to_element_with_id:\"app\"\
+             \n    Counter.component\
+             \n;;\
+             \n")
+            (/new.ml "let this_file_was_created = \"to test diffs\""))))))
+       ((readme "")
+        (source
+         ((root_dir fixtures/src/valid_project/2_state_machine)
+          (files
+           ((/counter.ml
+              "open! Core\
+             \nopen! Import\
+             \nopen Bonsai_web\
+             \nopen Bonsai.Let_syntax\
              \n\
              \nmodule Action = struct\
              \n  type t =\
@@ -75,6 +97,8 @@ let%expect_test "valid project" =
              \n\
              \n(* $MDX part-begin=index_html *)\
              \nlet component ~label ?(by = Value.return 1) () =\
+             \n  let module N = Vdom.Node in\
+             \n  let module A = Vdom.Attr in\
              \n  let%sub state_and_inject =\
              \n    Bonsai.state_machine1 (module Int) (module Action) ~default_model:0 ~apply_action by\
              \n  in\
@@ -86,9 +110,9 @@ let%expect_test "valid project" =
              \n  in\
              \n  let view =\
              \n    N.div\
-             \n      [ Vdom.Node.span [ N.textf \"%s: \" label ]\
+             \n      [ N.span [ N.textf \"%s: \" label ]\
              \n      ; button \"-\" Decr\
-             \n      ; Vdom.Node.span [ N.textf \"%d\" state ]\
+             \n      ; N.span [ N.textf \"%d\" state ]\
              \n      ; button \"+\" Incr\
              \n      ]\
              \n  in\
@@ -100,10 +124,11 @@ let%expect_test "valid project" =
               "open Bonsai_web\
              \nopen Bonsai_web_counters_example\
              \n\
-             \nlet this_is_here_for_the_diff = \"What if sandworms were Camels?\"\
-             \n\
              \nlet (_ : _ Start.Handle.t) =\
-             \n  Start.start Start.Result_spec.just_the_view ~bind_to_element_with_id:\"app\" application\
+             \n  Start.start\
+             \n    Start.Result_spec.just_the_view\
+             \n    ~bind_to_element_with_id:\"app\"\
+             \n    Counter.component\
              \n;;\
              \n"))))))))) |}]
 ;;
