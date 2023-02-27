@@ -2,7 +2,7 @@ open! Core
 
 type t =
   { readme : string
-  ; source : string list Mem_fs.t
+  ; source : string Mem_fs.t
   }
 [@@deriving sexp]
 

@@ -16,26 +16,21 @@ type 'a t [@@deriving sexp]
 (** [read_from_dir ?exclude ~f root_dir] recursively reads all files in [root_dir]
      into a `t`, passing them through a deserialization function `f`.
      Paths can be excluded via the optional `?exclude` argument. *)
-val read_from_dir : ?exclude:Re.re -> f:(string -> 'a) -> string -> 'a t Or_error.t
+val read_from_dir : ?exclude:Re.re -> string -> string t Or_error.t
 
-(** [persist_to_fs ?clear t ~f] writes all files in the in-memory filesystem
+(** [persist_to_fs ?clear t] writes all files in the in-memory filesystem
     to the backing unix filesystem, creating any needed subdirectories if
     they don't exist.
-    Files will be serialized to strings by the serialization function `f`.
     If `clear` (defaults to false) is true, the contents of the directory
     where the fs is mounted will be deleted before writing. *)
-val persist_to_fs : ?clear:bool -> 'a t -> f:('a -> string) -> unit Or_error.t
+val persist_to_fs : ?clear:bool -> string t -> unit Or_error.t
 
 (** [map t ~f] applies `f` to every file in `t`. *)
 val map : 'a t -> f:(path:string -> 'a -> 'b) -> 'b t
 
 (** [diff a b] generates ASCII diffs via patdiff, comparing the files between 2
     `Mem_fs.t`s. *)
-val diff
-  :  serialize:(path:string -> 'a -> string)
-  -> 'a t
-  -> 'a t
-  -> string Map.M(String).t
+val diff : string t -> string t -> string Map.M(String).t
 
 (** [root_dir t] gets the root directory of t. *)
 val root_dir : 'a t -> string

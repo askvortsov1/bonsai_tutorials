@@ -16,18 +16,18 @@ let of_file_list root_dir files =
     Or_error.return { root_dir = rel_root_dir; files }
 ;;
 
-let read_from_dir ?exclude ~f root_dir =
+let read_from_dir ?exclude root_dir =
   let open Or_error.Let_syntax in
   let%bind paths = Fs_util.ls_dir_rec ?exclude root_dir in
   paths
   |> List.map ~f:(fun path ->
-       let deserialized = f (In_channel.read_all path) in
+       let contents = In_channel.read_all path in
        let rel_path = String.substr_replace_first path ~pattern:root_dir ~with_:"" in
-       rel_path, deserialized)
+       rel_path, contents)
   |> of_file_list root_dir
 ;;
 
-let persist_to_fs ?(clear = false) t ~f =
+let persist_to_fs ?(clear = false) t =
   let open Or_error.Let_syntax in
   let%bind files_to_clear =
     if clear && Sys_unix.file_exists_exn t.root_dir
@@ -37,7 +37,6 @@ let persist_to_fs ?(clear = false) t ~f =
   Or_error.try_with (fun () ->
     files_to_clear |> List.iter ~f:Sys_unix.remove;
     t.files
-    |> Map.map ~f
     |> Map.iteri ~f:(fun ~key ~data ->
          let path = Filename.concat t.root_dir key in
          Fs_util.write_all_deep path ~data))
@@ -48,11 +47,8 @@ let map t ~f =
   { t with files = new_files }
 ;;
 
-let diff ~serialize a b =
-  Map.merge
-    (map a ~f:serialize).files
-    (map b ~f:serialize).files
-    ~f:(fun ~key:_ element ->
+let diff a b =
+  Map.merge a.files b.files ~f:(fun ~key:_ element ->
     let f_a, f_b =
       match element with
       | `Both (f_a, f_b) -> f_a, f_b

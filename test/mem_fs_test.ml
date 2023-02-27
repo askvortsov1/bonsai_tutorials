@@ -3,7 +3,7 @@ open Infra_src.Mem_fs
 open Infra_src.Fs_util
 
 let%expect_test "read from fs" =
-  let fs = read_from_dir ~f:Fn.id "./fixtures/read_env" in
+  let fs = read_from_dir "./fixtures/read_env" in
   print_s [%message (fs : string t Or_error.t)];
   [%expect
     {|
@@ -27,7 +27,6 @@ let%expect_test "read from fs with exclude" =
   let fs =
     read_from_dir
       ~exclude:(Re.Posix.compile (Re.Posix.re "nested2"))
-      ~f:Fn.id
       "./fixtures/read_env"
   in
   print_s [%message (fs : string t Or_error.t)];
@@ -60,7 +59,7 @@ let%expect_test "write to fs" =
   let root = "./fixtures/write" in
   write_all_deep (Filename.concat root "file.txt") ~data:"Something that's not O";
   let fs = of_file_list root files in
-  let write_result = Or_error.bind fs ~f:(persist_to_fs ~f:Fn.id) in
+  let write_result = Or_error.bind fs ~f:persist_to_fs in
   print_s [%message (write_result : unit Or_error.t)];
   [%expect {| (write_result (Ok ())) |}];
   let real_files = Infra_src.Fs_util.ls_dir_rec root in
@@ -87,7 +86,7 @@ let%expect_test "write to fs clear" =
   write_all_deep (Filename.concat root "other_file.txt") ~data:"abc";
   write_all_deep (Filename.concat root "nested/pre-existing_file.txt") ~data:"123";
   let fs = of_file_list root files in
-  let write_result = Or_error.bind fs ~f:(persist_to_fs ~f:Fn.id ~clear:false) in
+  let write_result = Or_error.bind fs ~f:(persist_to_fs ~clear:false) in
   print_s [%message (write_result : unit Or_error.t)];
   [%expect {| (write_result (Ok ())) |}];
   let real_files = Infra_src.Fs_util.ls_dir_rec root in
@@ -100,7 +99,7 @@ let%expect_test "write to fs clear" =
        ./fixtures/write/nested/pre-existing_file.txt ./fixtures/write/file2.txt
        ./fixtures/write/folder/nested/file.txt
        ./fixtures/write/folder/nested/file2.txt))) |}];
-  let write_result = Or_error.bind fs ~f:(persist_to_fs ~f:Fn.id ~clear:true) in
+  let write_result = Or_error.bind fs ~f:(persist_to_fs ~clear:true) in
   print_s [%message (write_result : unit Or_error.t)];
   [%expect {| (write_result (Ok ())) |}];
   let real_files = Infra_src.Fs_util.ls_dir_rec root in

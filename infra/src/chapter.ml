@@ -2,7 +2,7 @@ open! Core
 
 type t =
   { readme : string
-  ; source : string list Mem_fs.t
+  ; source : string Mem_fs.t
   }
 [@@deriving sexp]
 
@@ -10,7 +10,10 @@ let mdx_prefix = "(* $MDX"
 
 let clean chapter =
   let clean ~path:_ contents =
-    contents |> List.filter ~f:(fun l -> not (String.is_prefix ~prefix:mdx_prefix l))
+    contents
+    |> String.split_lines
+    |> List.filter ~f:(fun l -> not (String.is_prefix ~prefix:mdx_prefix l))
+    |> String.concat ~sep:"\n"
   in
   { chapter with source = Mem_fs.map ~f:clean chapter.source }
 ;;

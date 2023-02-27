@@ -51,10 +51,8 @@ let%expect_test "save diffs" =
   let reset_0 = save_diffs ~tutorials_dir ~src_dir ~diffs_dir ~project in
   print_s [%message (reset_0 : unit Or_error.t)];
   [%expect {| (reset_0 (Ok ())) |}];
-  let diffs_fs =
-    Mem_fs.read_from_dir ~f:String.split_lines (Filename.concat diffs_dir project)
-  in
-  print_s [%message (diffs_fs : string list Mem_fs.t Or_error.t)];
+  let diffs_fs = Mem_fs.read_from_dir (Filename.concat diffs_dir project) in
+  print_s [%message (diffs_fs : string Mem_fs.t Or_error.t)];
   [%expect
     {|
     (diffs_fs
@@ -62,41 +60,81 @@ let%expect_test "save diffs" =
       ((root_dir fixtures/diffs/valid_project)
        (files
         ((/0_to_1.patch
-          ("==== /.gitkeep ====" "" "" "==== /counter.ml ====" "-1,28 +1,37"
-           "  open! Core" "-|open Bonsai_web" "-|open Bonsai.Let_syntax"
-           "+|open! Import" +| "+|module Action = struct" "+|  type t ="
-           "+|    | Incr" "+|    | Decr" "+|  [@@deriving sexp_of]" +|end +|
-           "+|let apply_action ~inject:_ ~schedule_event:_ by model = function"
-           "+|  | Action.Incr -> model + by" "+|  | Decr -> model - by" "+|;;" -|
-           "-|(* $MDX part-begin=index_html *)" "-|module Model = struct"
-           "-|  type t = unit Int.Map.t [@@deriving sexp, equal]" -|end -|
-           "-|let add_counter_component =" "-|  let%sub add_counter_state =" +|
-           "+|(* $MDX part-begin=index_html *)"
-           "+|let component ~label ?(by = Value.return 1) () ="
-           "+|  let%sub state_and_inject =" "-|    Bonsai.state_machine0"
-           "-|      (module Model)" "-|      (module Unit)"
-           "-|      ~default_model:Int.Map.empty"
-           "-|      ~apply_action:(fun ~inject:_ ~schedule_event:_ model () ->"
-           "-|        let key = Map.length model in"
-           "-|        Map.add_exn model ~key ~data:())"
-           "+|    Bonsai.state_machine1 (module Int) (module Action) ~default_model:0 ~apply_action by"
-           "-|  in" "-|  let%arr state, inject = add_counter_state in"
-           "-|  let view =" "-|    Vdom.Node.button"
-           "-|      ~attr:(Vdom.Attr.on_click (fun _ -> inject ()))"
-           "-|      [ Vdom.Node.text \"Add Another Counter\" ]" "+|  in"
-           "+|  let%arr state, inject = state_and_inject" "+|  and by = by"
-           "+|  and label = label in" "+|  let button op action ="
-           "+|    N.button ~attr:(A.on_click (fun _ -> inject action)) [ N.textf \"%s%d\" op by ]"
-           "+|  in" "+|  let view =" "+|    N.div"
-           "+|      [ Vdom.Node.span [ N.textf \"%s: \" label ]"
-           "+|      ; button \"-\" Decr"
-           "+|      ; Vdom.Node.span [ N.textf \"%d\" state ]"
-           "+|      ; button \"+\" Incr" "+|      ]" "    in" "-|  state, view"
-           "+|  view, state" "  ;;" "  (* $MDX part-end *)" ""
-           "==== /main.ml ====" "-1,6 +1,8" "  open Bonsai_web"
-           "  open Bonsai_web_counters_example" "  "
-           "+|let this_is_here_for_the_diff = \"What if sandworms were Camels?\""
-           +| "  let (_ : _ Start.Handle.t) ="
-           "    Start.start Start.Result_spec.just_the_view ~bind_to_element_with_id:\"app\" application"
-           "  ;;"))))))) |}]
+           "==== /.gitkeep ====\
+          \n\
+          \n\
+          \n==== /counter.ml ====\
+          \n-1,28 +1,37\
+          \n  open! Core\
+          \n-|open Bonsai_web\
+          \n-|open Bonsai.Let_syntax\
+          \n+|open! Import\
+          \n+|\
+          \n+|module Action = struct\
+          \n+|  type t =\
+          \n+|    | Incr\
+          \n+|    | Decr\
+          \n+|  [@@deriving sexp_of]\
+          \n+|end\
+          \n+|\
+          \n+|let apply_action ~inject:_ ~schedule_event:_ by model = function\
+          \n+|  | Action.Incr -> model + by\
+          \n+|  | Decr -> model - by\
+          \n+|;;\
+          \n-|\
+          \n-|(* $MDX part-begin=index_html *)\
+          \n-|module Model = struct\
+          \n-|  type t = unit Int.Map.t [@@deriving sexp, equal]\
+          \n-|end\
+          \n-|\
+          \n-|let add_counter_component =\
+          \n-|  let%sub add_counter_state =\
+          \n+|\
+          \n+|(* $MDX part-begin=index_html *)\
+          \n+|let component ~label ?(by = Value.return 1) () =\
+          \n+|  let%sub state_and_inject =\
+          \n-|    Bonsai.state_machine0\
+          \n-|      (module Model)\
+          \n-|      (module Unit)\
+          \n-|      ~default_model:Int.Map.empty\
+          \n-|      ~apply_action:(fun ~inject:_ ~schedule_event:_ model () ->\
+          \n-|        let key = Map.length model in\
+          \n-|        Map.add_exn model ~key ~data:())\
+          \n+|    Bonsai.state_machine1 (module Int) (module Action) ~default_model:0 ~apply_action by\
+          \n-|  in\
+          \n-|  let%arr state, inject = add_counter_state in\
+          \n-|  let view =\
+          \n-|    Vdom.Node.button\
+          \n-|      ~attr:(Vdom.Attr.on_click (fun _ -> inject ()))\
+          \n-|      [ Vdom.Node.text \"Add Another Counter\" ]\
+          \n+|  in\
+          \n+|  let%arr state, inject = state_and_inject\
+          \n+|  and by = by\
+          \n+|  and label = label in\
+          \n+|  let button op action =\
+          \n+|    N.button ~attr:(A.on_click (fun _ -> inject action)) [ N.textf \"%s%d\" op by ]\
+          \n+|  in\
+          \n+|  let view =\
+          \n+|    N.div\
+          \n+|      [ Vdom.Node.span [ N.textf \"%s: \" label ]\
+          \n+|      ; button \"-\" Decr\
+          \n+|      ; Vdom.Node.span [ N.textf \"%d\" state ]\
+          \n+|      ; button \"+\" Incr\
+          \n+|      ]\
+          \n    in\
+          \n-|  state, view\
+          \n+|  view, state\
+          \n  ;;\
+          \n  (* $MDX part-end *)\
+          \n\
+          \n==== /main.ml ====\
+          \n-1,6 +1,8\
+          \n  open Bonsai_web\
+          \n  open Bonsai_web_counters_example\
+          \n  \
+          \n+|let this_is_here_for_the_diff = \"What if sandworms were Camels?\"\
+          \n+|\
+          \n  let (_ : _ Start.Handle.t) =\
+          \n    Start.start Start.Result_spec.just_the_view ~bind_to_element_with_id:\"app\" application\
+          \n  ;;")))))) |}]
 ;;
