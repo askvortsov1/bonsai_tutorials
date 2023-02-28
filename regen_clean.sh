@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-dune build
+opam exec -- dune build
 
 cli="./_build/default/infra/bin/main.exe"
 
