@@ -48,8 +48,13 @@ let%expect_test "least_common_ancestor_abs" =
 
 let%expect_test "relativize_path" =
   let abs = relativize_path "/root/to/something" in
-  print_s [%message abs];
-  [%expect {| ../../../../../../../../../root/to/something |}];
+  let abs_trim_parent_dir =
+    Re.replace_string (Re.compile (Re.Posix.re "(\\.\\./)+")) ~by:"../" abs
+  in
+  print_s [%message abs_trim_parent_dir];
+  (* This is trimmed because the test runner environment
+     may be at various depths. *)
+  [%expect {| ../root/to/something |}];
   let rel_below = relativize_path "./fixtures/something" in
   print_s [%message rel_below];
   [%expect {| fixtures/something |}];
