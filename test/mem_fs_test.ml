@@ -95,10 +95,11 @@ let%expect_test "write to fs clear" =
     {|
     (real_files
      (Ok
-      (./fixtures/write/other_file.txt ./fixtures/write/file.txt
-       ./fixtures/write/nested/pre-existing_file.txt ./fixtures/write/file2.txt
+      (./fixtures/write/file.txt ./fixtures/write/file2.txt
        ./fixtures/write/folder/nested/file.txt
-       ./fixtures/write/folder/nested/file2.txt))) |}];
+       ./fixtures/write/folder/nested/file2.txt
+       ./fixtures/write/nested/pre-existing_file.txt
+       ./fixtures/write/other_file.txt))) |}];
   let write_result = Or_error.bind fs ~f:(persist_to_fs ~clear:true) in
   print_s [%message (write_result : unit Or_error.t)];
   [%expect {| (write_result (Ok ())) |}];

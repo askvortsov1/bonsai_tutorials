@@ -8,12 +8,11 @@ let%expect_test "ls_dir_rec" =
     {|
     (files
      (Ok
-      (./fixtures/read_env/file.ml ./fixtures/read_env/poem.txt
-       ./fixtures/read_env/file/README.md
+      (./fixtures/read_env/dune ./fixtures/read_env/file.ml
+       ./fixtures/read_env/file/README.md ./fixtures/read_env/file/nested2/leaf
        ./fixtures/read_env/file/nested2/nested3/leaf
-       ./fixtures/read_env/file/nested2/leaf
        "./fixtures/read_env/file/spaces in file name.txt"
-       ./fixtures/read_env/dune))) |}]
+       ./fixtures/read_env/poem.txt))) |}]
 ;;
 
 let%expect_test "write_all_deep" =

@@ -39,8 +39,10 @@ let ls_dir_rec ?exclude root_dir =
     | [] -> result
   in
   let file_names, errors = loop ([], []) [ root_dir ] in
+  (* Deterministic order for tests. *)
+  let sorted_files = List.stable_sort ~compare:String.compare file_names in
   match errors with
-  | [] -> Or_error.return file_names
+  | [] -> Or_error.return sorted_files
   | _ -> Or_error.error_s [%message (errors : string list)]
 ;;
 

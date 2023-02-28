@@ -1,7 +1,8 @@
 open! Core
 
 (** [ls_dir_rec ?exclude root] recursively lists all files inside a directory,
-    and all nested subdirectories, excluding those matched by the regex [exclude]. *)
+    and all nested subdirectories, excluding those matched by the regex [exclude].
+    File paths are returned in alphabetical order to guaruntee determinism for tests. *)
 val ls_dir_rec : ?exclude:Re.re -> string -> string list Or_error.t
 
 (** [write_all_deep] has the same behavior as [Out_channel], except that if the
