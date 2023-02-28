@@ -1,0 +1,145 @@
+==== /client/app.ml ====
+-1,4 +1,43
+  open! Core
+  open! Bonsai_web
+-|
+-|let component = Computation.return (Vdom.Node.text "Hello world!")
++|open Common
++|
++|(* This is here temporarily until we move it to the server. *)
++|let global_tasks =
++|  let open Month in
++|  Value.return
++|    [
++|      {
++|        Task.title = "Buy groceries";
++|        completed_on = Some (Date.create_exn ~y:2022 ~m:Feb ~d:10);
++|        due_date = Date.create_exn ~y:2023 ~m:Feb ~d:8;
++|        description =
++|          {|
++|            Going to make creme brulee! I need:
++|            - Heavy cream
++|            - Vanilla extract
++|            - Eggs
++|            - Sugar
++|          |};
++|      };
++|      {
++|        Task.title = "Create a Bonsai tutorial";
++|        completed_on = None;
++|        due_date = Date.create_exn ~y:2023 ~m:Aug ~d:28;
++|        description =
++|          {|
++|            Bonsai is awesome and I want to help make it easier to learn!
++|          |};
++|      };
++|      {
++|        Task.title = "Study for complex analysis exam";
++|        completed_on = None;
++|        due_date = Date.create_exn ~y:2023 ~m:Feb ~d:15;
++|        description =
++|          {|
++|            I should go through homeworks again, and solve exercise textbook problems.
++|          |};
++|      };
++|    ]
++|
++|let component = Tasks.component ~tasks:global_tasks
+
+==== /client/tasks.ml ====
+-1,0 +1,63
++|open! Core
++|open! Bonsai
++|open! Bonsai_web
++|open Common
++|open Bonsai.Let_syntax
++|
++|module Style =
++|[%css.raw
++|{|
++|.task_tile {
++|  box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);
++|  transition: 0.3s;
++|  padding: 2px 16px;
++|  max-width: 300px;
++|  margin: 20px;
++|}
++|
++|.task_tile:hover {
++|  box-shadow: 0 8px 16px 0 rgba(0,0,0,0.2);
++|}
++|.task_tile .task_meta {
++|  border-top: 1px solid;
++|  border-bottom: 1px solid;
++|}
++||}]
++|
++|(* In a real product, we'd use a more sophisticated Markdown -> HTML renderer. *)
++|let format_description text =
++|  let inner =
++|    text |> String.split_lines
++|    |> List.map ~f:(fun l -> Vdom.Node.p [ Vdom.Node.text l ])
++|  in
++|  Vdom.Node.div inner
++|
++|let view_task { Task.completed_on; due_date; title; description } =
++|  Vdom.(
++|    Node.div
++|      ~attr:(Attr.class_ Style.task_tile)
++|      [
++|        Node.h3 [ Node.text title ];
++|        Node.div
++|          ~attr:(Attr.class_ Style.task_meta)
++|          [
++|            Node.p [ Node.textf "Due: %s" (Date.to_string due_date) ];
++|            (match completed_on with
++|            | None -> Node.none
++|            | Some date ->
++|                Node.p [ Node.textf "Completed: %s" (Date.to_string date) ]);
++|          ];
++|        format_description description;
++|      ])
++|
++|let view_tasks items =
++|  Vdom.(
++|    Node.div ~attr:(Attr.id "tasks")
++|      [
++|        Node.h1 [ Node.text "Your Tasks" ];
++|        Node.div (List.map items ~f:view_task);
++|      ])
++|
++|let component ~tasks =
++|  let%arr tasks = tasks in
++|  view_tasks tasks
+
+==== /client/tasks.mli ====
+-1,0 +1,5
++|open! Core
++|open! Bonsai_web
++|open Common
++|
++|val component : tasks:Task.t list Value.t -> Vdom.Node.t Computation.t
+
+==== /common/task.ml ====
+-1,0 +1,9
++|open! Core
++|
++|type t = {
++|  completed_on : Date.t option;
++|  due_date : Date.t;
++|  title : string;
++|  description : string;
++|}
++|[@@deriving sexp, bin_io, fields]
+
+==== /common/task.mli ====
+-1,0 +1,9
++|open! Core
++|
++|type t = {
++|  completed_on : Date.t option;
++|  due_date : Date.t;
++|  title : string;
++|  description : string;
++|}
++|[@@deriving sexp, bin_io, fields]
