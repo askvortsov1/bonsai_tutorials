@@ -158,7 +158,8 @@ let%expect_test "save diffs" =
           \n\
           \n==== /new.ml ====\
           \n-1,0 +1,1\
-          \n+|let this_file_was_created = \"to test diffs\"")
+          \n+|let this_file_was_created = \"to test diffs\"\
+          \n")
          (/1_to_2.patch
            "==== /.gitkeep ====\
           \n(Deleted empty file)\
@@ -239,5 +240,6 @@ let%expect_test "save diffs" =
           \n==== /valid_project.opam ====\
           \n-1,1 +1,2\
           \n  opam-version: \"2.0\"\
-          \n+|synopsis: \"Oops, forgot to add this\"")))))) |}]
+          \n+|synopsis: \"Oops, forgot to add this\"\
+          \n")))))) |}]
 ;;
