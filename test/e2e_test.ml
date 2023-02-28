@@ -73,7 +73,8 @@ let%expect_test "reset workbench" =
            "open! Core\
           \nopen Bonsai_web\
           \n\
-          \nlet component = Computation.return (Vdom.Node.text \"Hello World\")")
+          \nlet component = Computation.return (Vdom.Node.text \"Hello World\")\
+          \n")
          (/main.ml
            "open Bonsai_web\
           \n\
@@ -82,8 +83,9 @@ let%expect_test "reset workbench" =
           \n    Start.Result_spec.just_the_view\
           \n    ~bind_to_element_with_id:\"app\"\
           \n    Counter.component\
-          \n;;")
-         (/valid_project.opam "opam-version: \"2.0\"")))))) |}]
+          \n;;\
+          \n")
+         (/valid_project.opam "opam-version: \"2.0\"\n")))))) |}]
 ;;
 
 let%expect_test "save diffs invalid project" =

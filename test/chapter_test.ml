@@ -53,5 +53,6 @@ something else
      (Ok
       ((readme "")
        (source ((root_dir .) (files ((""  " something\
-                                         \nsomething else")))))))) |}]
+                                         \nsomething else\
+                                         \n")))))))) |}]
 ;;

@@ -10,10 +10,14 @@ let mdx_prefix = "(* $MDX"
 
 let clean chapter =
   let clean_mdx ~path:_ contents =
-    contents
-    |> String.split_lines
-    |> List.filter ~f:(fun l -> not (String.is_prefix ~prefix:mdx_prefix l))
-    |> String.concat ~sep:"\n"
+    if String.is_empty contents
+    then contents
+    else
+      contents
+      |> String.split_lines
+      |> List.filter ~f:(fun l -> not (String.is_prefix ~prefix:mdx_prefix l))
+      |> String.concat ~sep:"\n"
+      |> fun x -> x ^ "\n"
   in
   let trim_opam_suffix =
     let opam_regex = Re.compile (Re.Posix.re "([a-zA-Z_-])[0-9]*\\.opam") in
