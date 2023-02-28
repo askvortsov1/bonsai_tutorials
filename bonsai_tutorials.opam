@@ -5,6 +5,7 @@ maintainer: ["You!"]
 depends: [
   "ocaml"
   "dune" {>= "3.6"}
+  "ocamlformat"
   "mdx"
   "core"
   "core_unix"
