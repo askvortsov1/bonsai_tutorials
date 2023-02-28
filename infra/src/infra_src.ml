@@ -115,6 +115,7 @@ let serialize_chapter_diffs diff =
   |> List.filter ~f:(fun (_, diff) -> not (String.is_empty diff))
   |> List.map ~f:(fun (path, diff) -> sprintf "==== %s ====\n%s" path diff)
   |> String.concat ~sep:"\n\n"
+  |> fun x -> x ^ "\n"
 ;;
 
 let save_diffs ~tutorials_dir ~src_dir ~diffs_dir ~project =

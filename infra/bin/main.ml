@@ -1,40 +1,42 @@
 open! Core
 
 module Shared = struct
-  open Command.Param
-
   let default_diffs_dir = "./diffs"
   let default_src_dir = "./src"
   let default_tutorials_dir = "./tutorials"
   let default_workbench_dir = "./workbench"
 
-  let diffs_dir_flag () =
+  open Command.Param
+
+  let diffs_dir_flag =
     flag
       "--diffs-dir"
       (optional_with_default default_diffs_dir string)
       ~doc:" alternate diffs directory"
   ;;
 
-  let src_dir_flag () =
+  let src_dir_flag =
     flag
       "--src-dir"
       (optional_with_default default_src_dir string)
       ~doc:" alternate tutorial source directory"
   ;;
 
-  let tutorials_dir_flag () =
+  let tutorials_dir_flag =
     flag
       "--tutorials-dir"
       (optional_with_default default_tutorials_dir string)
       ~doc:" alternate tutorials directory"
   ;;
 
-  let workbench_dir_flag () =
+  let workbench_dir_flag =
     flag
       "--workbench-dir"
       (optional_with_default default_workbench_dir string)
       ~doc:" alternate workbench directory"
   ;;
+
+  let project_arg = anon ("project" %: string)
 end
 
 let reset_workbench =
@@ -46,10 +48,10 @@ let reset_workbench =
          "--make-backup"
          no_arg
          ~doc:"back up your current workbench before resetting it"
-     and src_dir = Shared.src_dir_flag ()
-     and tutorials_dir = Shared.tutorials_dir_flag ()
-     and workbench_dir = Shared.workbench_dir_flag ()
-     and project = anon ("project" %: string)
+     and src_dir = Shared.src_dir_flag
+     and tutorials_dir = Shared.tutorials_dir_flag
+     and workbench_dir = Shared.workbench_dir_flag
+     and project = Shared.project_arg
      and chapter_index = anon (maybe_with_default 0 ("chapter_index" %: int)) in
      fun () ->
        Infra_src.reset_workbench
@@ -65,10 +67,10 @@ let reset_workbench =
 let save_diffs =
   Command.basic
     ~summary:"Persist diffs between all chapters for [project]."
-    (let%map_open.Command diffs_dir = Shared.diffs_dir_flag ()
-     and src_dir = Shared.src_dir_flag ()
-     and tutorials_dir = Shared.tutorials_dir_flag ()
-     and project = anon ("project" %: string) in
+    (let%map_open.Command diffs_dir = Shared.diffs_dir_flag
+     and src_dir = Shared.src_dir_flag
+     and tutorials_dir = Shared.tutorials_dir_flag
+     and project = Shared.project_arg in
      fun () ->
        Infra_src.save_diffs ~src_dir ~tutorials_dir ~diffs_dir ~project |> Or_error.ok_exn)
 ;;

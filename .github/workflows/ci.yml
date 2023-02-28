@@ -52,5 +52,5 @@ jobs:
 
       - name: Assert generated matches
         run: |
-          bash ./regen_clean.sh
+          bash ./regen_starter_and_diffs.sh
           git status && git diff --quiet
