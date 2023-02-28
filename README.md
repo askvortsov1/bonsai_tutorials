@@ -14,7 +14,7 @@ At the moment, we have 2 tutorials.
   - `match%sub`, which evaluates one of several computations
   - `assoc`, which evaluates a dynamic number of computations in parallel
 
-`snake` implements a simple version of the classic video game in Bonsai.
+`snake_game` implements a simple version of the classic video game in Bonsai.
 This tutorial focuses on Bonsai's state tools, and patterns for sharing state between components.
 It'll also give you practice building interactive, reactive applications.
 
@@ -35,7 +35,9 @@ also give you a chance to play around inspect types by hovering.
 
 `src` contains a copy of what the code should look like after every chapter of a tutorial. You can compare your code to it, or use it to track how the code evolves.
 
-The first chapter of each tutorial is an explanation of the starter code and file structure. From there, you'll be building out the project one step at a time. Each chapter will introduce new concepts.
+`diffs` contains auto-generated diffs between versions in `src`, so you can see exactly what changed in any chapter.
+
+The 0th chapter of each tutorial is an explanation of the starter code and file structure. From there, you'll be building out the project one step at a time. Each chapter will introduce new concepts.
 The goal of this tutorial is to teach you how to use Bonsai.
 We won't cover much of the conceptual background, history, inner workings, or all of the available tools.
 For that, you should read our [explanatory documentation](https://bonsai.red/). We recommend having it open, and will be linking to it frequently.
@@ -48,6 +50,23 @@ A few tips while building:
   Trying new things is the best way to learn.
 - If the code you're writing just doesn't seem to work, feel free to refer to
   the completed versions of each chapter in `src`!
+
+## Reset-Workbench CLI
+
+Experimenting beyond the scope of the tutorial is fun, but cleaning up and getting back on track can be a pain.
+Fear not! This tutorial includes a CLI tool that will reset your workbench to any version of the tutorial.
+To use it, first install the necessary opam dependencies:
+
+<!-- $MDX skip -->
+```sh
+opam install .
+```
+
+Then, you can use `./cli.sh reset-workbench PROJECT [CHAPTER_INDEX]` to reset the workbench back to the starter code.
+You can use the optional `[CHAPTER_INDEX]` argument to reset the workbench to a chapter other than 0, if you'd like to
+skip ahead in the tutorial.
+
+There's also a `--make-backup` flag which will save your current workbench in a backup folder, so you don't lose any work.
 
 ## Additional Resources
 
