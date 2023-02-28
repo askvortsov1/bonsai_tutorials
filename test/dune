@@ -1,0 +1,12 @@
+(library
+ (name bonsai_tutorials_test)
+ (public_name bonsai_tutorials.test)
+ (inline_tests
+  (deps
+   (glob_files_rec fixtures/**))
+  (flags (-verbose)))
+ (libraries bonsai_tutorials.infra_src)
+ (preprocess
+  (pps ppx_jane ppx_expect)))
+
+(data_only_dirs fixtures)

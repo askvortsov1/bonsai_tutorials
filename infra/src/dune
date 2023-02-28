@@ -1,0 +1,12 @@
+(library
+ (name infra_src)
+ (public_name bonsai_tutorials.infra_src)
+ (libraries
+  core
+  core_unix
+  core_unix.sys_unix
+  core_unix.filename_unix
+  patdiff.expect_test_patdiff
+  re)
+ (preprocess
+  (pps ppx_jane ppx_typed_fields)))

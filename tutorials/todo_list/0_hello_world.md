@@ -218,12 +218,21 @@ bindings for browser APIs.
 
 <!-- $MDX file=../../src/todo_list/0_hello_world/client/dune -->
 ```dune
-(executables (names main)
+(executables
+ (names main)
  (modes js)
- (libraries async_kernel async_js core_kernel.composition_infix core
- bonsai
-  bonsai.web common virtual_dom virtual_dom.input_widgets)
- (preprocess (pps js_of_ocaml-ppx ppx_jane ppx_css)))
+ (libraries
+  async_kernel
+  async_js
+  core_kernel.composition_infix
+  core
+  bonsai
+  bonsai.web
+  common
+  virtual_dom
+  virtual_dom.input_widgets)
+ (preprocess
+  (pps js_of_ocaml-ppx ppx_jane ppx_css)))
 ```
 
 Once you mark a library or executable with `js_of_ocaml`, you are in
