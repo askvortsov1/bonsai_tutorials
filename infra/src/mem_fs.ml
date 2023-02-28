@@ -58,13 +58,16 @@ let rename t ~f =
 
 let diff a b =
   Map.merge a.files b.files ~f:(fun ~key:_ element ->
-    let f_a, f_b =
+    let operation =
       match element with
-      | `Both (f_a, f_b) -> f_a, f_b
-      | `Left f_a -> f_a, ""
-      | `Right f_b -> "", f_b
+      | `Both (f_a, f_b) -> `Diff (f_a, f_b)
+      | `Left f_a -> if String.is_empty f_a then `Deleted_empty else `Diff (f_a, "")
+      | `Right f_b -> if String.is_empty f_b then `Created_empty else `Diff ("", f_b)
     in
-    Some (Expect_test_patdiff.patdiff f_a f_b))
+    match operation with
+    | `Diff (a, b) -> Some (Expect_test_patdiff.patdiff a b)
+    | `Deleted_empty -> Some "(Deleted empty file)"
+    | `Created_empty -> Some "(Created empty file)")
 ;;
 
 let root_dir t = t.root_dir

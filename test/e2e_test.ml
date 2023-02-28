@@ -113,7 +113,10 @@ let%expect_test "save diffs" =
       ((root_dir fixtures/diffs/valid_project)
        (files
         ((/0_to_1.patch
-           "==== /counter.ml ====\
+           "==== /.gitkeep ====\
+          \n(Created empty file)\
+          \n\
+          \n==== /counter.ml ====\
           \n-1,4 +1,19\
           \n  open! Core\
           \n-|open Bonsai_web\
@@ -153,12 +156,12 @@ let%expect_test "save diffs" =
           \n\
           \n==== /new.ml ====\
           \n-1,0 +1,1\
-          \n+|let this_file_was_created = \"to test diffs\"\
-          \n\
-          \n==== /valid_project.opam ====\
-          \n")
+          \n+|let this_file_was_created = \"to test diffs\"")
          (/1_to_2.patch
-           "==== /counter.ml ====\
+           "==== /.gitkeep ====\
+          \n(Deleted empty file)\
+          \n\
+          \n==== /counter.ml ====\
           \n-1,19 +1,39\
           \n  open! Core\
           \n  open! Import\
@@ -232,5 +235,7 @@ let%expect_test "save diffs" =
           \n-|let this_file_was_created = \"to test diffs\"\
           \n\
           \n==== /valid_project.opam ====\
-          \n")))))) |}]
+          \n-1,1 +1,2\
+          \n  opam-version: \"2.0\"\
+          \n+|synopsis: \"Oops, forgot to add this\"")))))) |}]
 ;;

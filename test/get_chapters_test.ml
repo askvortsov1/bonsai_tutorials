@@ -37,7 +37,8 @@ let%expect_test "valid project" =
         (source
          ((root_dir fixtures/src/valid_project/1_raw_state)
           (files
-           ((/counter.ml
+           ((/.gitkeep "")
+            (/counter.ml
               "open! Core\
              \nopen! Import\
              \n\
@@ -133,7 +134,9 @@ let%expect_test "valid project" =
              \n    Counter.component\
              \n;;\
              \n")
-            (/valid_project2.opam "opam-version: \"2.0\""))))))))) |}]
+            (/valid_project2.opam
+              "opam-version: \"2.0\"\
+             \nsynopsis: \"Oops, forgot to add this\""))))))))) |}]
 ;;
 
 let%expect_test "nonexistent project" =

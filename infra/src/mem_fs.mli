@@ -29,7 +29,7 @@ val persist_to_fs : ?clear:bool -> string t -> unit Or_error.t
 val map : 'a t -> f:(path:string -> 'a -> 'b) -> 'b t
 
 (** [rename t ~f] applies `~f` to paths of files. *)
-val rename : 'a t-> f:(string -> string) -> 'a t Or_error.t 
+val rename : 'a t -> f:(string -> string) -> 'a t Or_error.t
 
 (** [diff a b] generates ASCII diffs via patdiff, comparing the files between 2
     `Mem_fs.t`s. *)
