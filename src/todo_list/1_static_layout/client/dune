@@ -12,4 +12,4 @@
   virtual_dom
   virtual_dom.input_widgets)
  (preprocess
-  (pps ppx_css js_of_ocaml-ppx ppx_jane)))
+  (pps js_of_ocaml-ppx ppx_jane ppx_css)))

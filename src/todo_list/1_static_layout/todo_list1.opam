@@ -13,6 +13,7 @@ depends: [
   "async_kernel"
   "async_rpc_kernel"
   "async_rpc_websocket"
+  "ppx_css"
   "odoc" {with-doc}
 ]
 build: [
