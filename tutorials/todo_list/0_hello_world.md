@@ -20,24 +20,24 @@ You'll write code in the `workbench/todo_list` directory, but terminal commands 
 from the root of this "tutorials" library.
 
 As you work through this tutorial, you should frequently build and re-run the application
-to see your changes come to life. 
+to see your changes come to life.
 
 Before you start, install all dependencies:
 
 <!-- $MDX skip -->
 ```sh
-$ opam install workbench/todo_list
+opam install workbench/todo_list
 ```
 
 Then, when you've made changes, you can run:
 
 <!-- $MDX skip -->
 ```sh
-$ dune build
-$ ./_build/default/workbench/todo_list/server/bin/main.exe
+dune build
+./_build/default/workbench/todo_list/server/bin/main.exe
 ```
 
-to build and run your code. Then, all you need to do is go to http://localhost:8080 in your browser!
+to build and run your code. Then, all you need to do is go to [http://localhost:8080](http://localhost:8080) in your browser!
 
 At this point, all you should see is a "Hello world! message. Let's discuss how it works.
 
@@ -99,7 +99,6 @@ Simple. Now, let's check out how `Server.command` is implemented.
 ### Server HTTP Logic
 
 The core of our backend logic is the http handler function, which takes a `Cohttp.Request.t`, and returns a `Cohttp_async.Server.Response.t`:
-
 
 <!-- $MDX file=../../src/todo_list/0_hello_world/server/src/server.ml,part=handler -->
 ```ocaml
@@ -199,7 +198,7 @@ command line. But Bonsai uses
 JavaScript file with the extension `.bc.js` (the "bc" for "bytecode")
 that is then included in an HTML page.
 
-That's how the `Embedded_files.main_dot_bc_dot_js` file we serve for 
+That's how the `Embedded_files.main_dot_bc_dot_js` file we serve for
 requests to `/main.js` is created.
 
 Right now, we have 2 files:

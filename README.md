@@ -6,6 +6,7 @@ In these tutorials, you'll learn Bonsai by building some simple example apps.
 At the moment, we have 2 tutorials.
 
 `todo_list` demonstrates a simple full-stack CRUD web app, entirely in OCaml. You'll learn:
+
 - The basics of designing and building reusable, interactive Bonsai components
 - Bonsai's RPC tools, and how they can be used for robust, type-safe communication between frontend and backend
 - `Url_var`: a library for URLs and routing in Bonsai, which comes with a typed bi-directional router
@@ -72,12 +73,12 @@ There's also a `--make-backup` flag which will save your current workbench in a 
 
 Here are a few useful references for understanding Bonsai. Some of these will be referenced throughout the tutorials.
 
-* Bonsai's [public documentation](https://bonsai.red/), which provides background and explanation for Bonsai, with code examples. The guide goes hand-in-hand with these tutorials, and we'll reference it often.
-* The [bonsai.mli](https://github.com/janestreet/bonsai/blob/master/src/bonsai.mli) file, which is a reference guide for Bonsai's public API.
-* A [comparison of component implementations](https://github.com/TyOverby/composition-comparison/blob/main/readme.md) between Bonsai, Elm, and React. If you're more familiar with a different framework, these can help get started with Bonsai. They also showcase Bonsai's strength, flexibility, and tersity.
-* Blog posts on [how to think about Bonsai components](https://gist.github.com/TyOverby/daf9a92db08d1c724f298bfb943f5a3e) and [higher-order components](https://gist.github.com/TyOverby/cf9b79bab1cf96369411c761c9406d95), as well as [tools for internal vs external state](https://gist.github.com/TyOverby/fa89d5c3ef9ef5830f0a5146da98ebd5).
-* [Signals & Threads interview w/ Bonsai creator](https://signalsandthreads.com/building-a-ui-framework/)
-* The second half of [this blog series](https://ceramichacker.com/blog/category/ocaml-webdev)
-* [Tech talk on incremental computation](https://www.youtube.com/watch?v=G6a5G5i4gQU)
-* [Bonsai History](https://github.com/janestreet/bonsai/blob/master/docs/blogs/history.md), with the most recent development [in a separate article](https://github.com/janestreet/bonsai/blob/master/docs/blogs/proc.md).
-* [How to test Bonsai components](https://github.com/janestreet/bonsai/blob/master/docs/blogs/testing.md)
+- Bonsai's [public documentation](https://bonsai.red/), which provides background and explanation for Bonsai, with code examples. The guide goes hand-in-hand with these tutorials, and we'll reference it often.
+- The [bonsai.mli](https://github.com/janestreet/bonsai/blob/master/src/bonsai.mli) file, which is a reference guide for Bonsai's public API.
+- A [comparison of component implementations](https://github.com/TyOverby/composition-comparison/blob/main/readme.md) between Bonsai, Elm, and React. If you're more familiar with a different framework, these can help get started with Bonsai. They also showcase Bonsai's strength, flexibility, and tersity.
+- Blog posts on [how to think about Bonsai components](https://gist.github.com/TyOverby/daf9a92db08d1c724f298bfb943f5a3e) and [higher-order components](https://gist.github.com/TyOverby/cf9b79bab1cf96369411c761c9406d95), as well as [tools for internal vs external state](https://gist.github.com/TyOverby/fa89d5c3ef9ef5830f0a5146da98ebd5).
+- [Signals & Threads interview w/ Bonsai creator](https://signalsandthreads.com/building-a-ui-framework/)
+- The second half of [this blog series](https://ceramichacker.com/blog/category/ocaml-webdev)
+- [Tech talk on incremental computation](https://www.youtube.com/watch?v=G6a5G5i4gQU)
+- [Bonsai History](https://github.com/janestreet/bonsai/blob/master/docs/blogs/history.md), with the most recent development [in a separate article](https://github.com/janestreet/bonsai/blob/master/docs/blogs/proc.md).
+- [How to test Bonsai components](https://github.com/janestreet/bonsai/blob/master/docs/blogs/testing.md)
