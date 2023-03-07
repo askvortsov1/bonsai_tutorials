@@ -33,8 +33,7 @@ Then, when you've made changes, you can run:
 
 <!-- $MDX skip -->
 ```sh
-dune build
-./_build/default/workbench/todo_list/server/bin/main.exe
+dune exec --watch ./_build/default/workbench/todo_list/server/bin/main.exe
 ```
 
 to build and run your code. Then, all you need to do is go to [http://localhost:8080](http://localhost:8080) in your browser!
