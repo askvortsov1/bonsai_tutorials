@@ -25,7 +25,7 @@
 +|
 +|let component ~tasks =
 +|  let open Bonsai.Let_syntax in
-+|  let%sub task_list = Tasks.component ~tasks in
++|  let%sub task_list = Task_list.component ~tasks in
 +|  let%sub create_task = Create_task.component in
 +|  let%arr task_list = task_list and create_task = create_task in
 +|  Vdom.(
@@ -147,7 +147,7 @@
   
   let () = don't_wait_for (run ())
 
-==== /client/tasks.ml ====
+==== /client/task_list.ml ====
 -1,0 +1,66
 +|open! Core
 +|open! Bonsai_web
@@ -216,7 +216,7 @@
 +|  let%arr tasks = tasks in
 +|  view_tasks tasks
 
-==== /client/tasks.mli ====
+==== /client/task_list.mli ====
 -1,0 +1,5
 +|open! Core
 +|open! Bonsai_web
