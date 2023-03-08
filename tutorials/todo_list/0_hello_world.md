@@ -132,7 +132,7 @@ let html =
   <head>
     <meta charset="UTF-8">
     <script defer src="main.js"></script>
-    <title> TODO-List </title>
+    <title> To-do List </title>
   </head>
 
   <body>
@@ -177,7 +177,7 @@ a `Core.Command.t`, as we saw at the start of this section:
 <!-- $MDX file=../../src/todo_list/0_hello_world/server/src/server.ml,part=command -->
 ```ocaml
 let command =
-  Command.async ~summary:"Start server for todo-list"
+  Command.async ~summary:"Start server for To-do list"
     (let%map_open.Command port =
        flag "port"
          (optional_with_default 8080 int)
@@ -245,28 +245,17 @@ Bonsai components are [incremental](https://blog.janestreet.com/introducing-incr
 computations, producing ["virtual" HTML](https://bonsai.red/00-introduction.html#the-underlying-machinery)
 that's displayed in the browser.
 
-If you're unfamiliar with Incremental, think of it as OCaml's Excel.
-Cells can depend on other cells, and will only change when their dependencies change.
-Bonsai has 2 key types that you should be aware of.
-
-- `'a Value.t` is an incrementally computed value, or more accurately,
-  a node in the incremental computation graph. You'll see it next chapter.
-  Thinking in Excel, an `'a Value.t` is what we see in a cell: it may be a
-  standalone variable, or it might be the output of some formula.
-  It might also change over time, either if we edit the cell
-  (for standalone variables), or if any inputs to the cell's formula change.
-- `'a Computation.t` is a blueprint/formula for producing a Value.t.
-  In our Excel analogy, a Computation.t is the formula we see when we double-click a cell.
-
-The type of Bonsai "component" is `'a Computation.t`, or a function returning
-`'a Computation.t`.
+We'll learn more about components in the next few chapters. For now,
+all you need to know is that displayed Bonsai components have the type
+`Vdom.Node.t Computation.t`, where `Vdom.Node.t` is an HTML text node,
+and 
 
 For now though, all we want to do is display "Hello World".
 Our top-level component in `app.ml` will just be an HTML text node,
 wrapped in a `Computation.t` so that it's a Bonsai component:
 
 <!-- $MDX file=../../src/todo_list/0_hello_world/client/app.ml -->
-```dune
+```ocaml
 open! Core
 open! Bonsai_web
 
@@ -281,7 +270,7 @@ start the Bonsai web app in `main.ml`, which will become the
 `main.bc.js` executable:
 
 <!-- $MDX file=../../src/todo_list/0_hello_world/client/main.ml -->
-```dune
+```ocaml
 open! Core
 open! Async_kernel
 open! Bonsai_web

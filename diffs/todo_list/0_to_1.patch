@@ -1,19 +1,112 @@
 ==== /client/app.ml ====
--1,4 +1,43
+-1,4 +1,35
   open! Core
   open! Bonsai_web
--|
+  
 -|let component = Computation.return (Vdom.Node.text "Hello world!")
-+|open Common
++|module Style =
++|[%css.raw
++|{|
++|.app {
++|  display: flex;
++|  flex-direction: column;
++|  align-items: center;
++|}
 +|
++|.title {
++| text-align: center
++|}
++|
++|.container {
++|  display: flex;
++|  gap: 50px;
++|}
++||}]
++|
++|let component ~tasks =
++|  let open Bonsai.Let_syntax in
++|  let%sub task_list = Tasks.component ~tasks in
++|  let%sub create_task = Create_task.component in
++|  let%arr task_list = task_list and create_task = create_task in
++|  Vdom.(
++|    Node.div
++|      ~attr:(Attr.many [ Attr.class_ Style.app; Attr.id "app" ])
++|      [
++|        Node.h1 ~attr:(Attr.class_ Style.title)
++|          [ Node.text "Bonsai To-do List" ];
++|        Node.div ~attr:(Attr.class_ Style.container) [ task_list; create_task ];
++|      ])
+
+==== /client/app.mli ====
+-1,4 +1,5
+  open! Core
+  open! Bonsai_web
++|open Common
+  
+-|val component : Vdom.Node.t Computation.t
++|val component : tasks:Task.t list Value.t -> Vdom.Node.t Computation.t
+
+==== /client/create_task.ml ====
+-1,0 +1,37
++|open! Core
++|open! Bonsai_web
++|
++|module Style =
++|[%css.raw
++|{|
++|.create_task_button {
++|  font-size: 16px;
++|  padding: 8px 16px;
++|  border: 2px solid #CCCCCC;
++|  background-color: #CCCCCC;
++|}
++|.create_task_button:hover {
++|  border-color: #7a7a7a;
++|}
++||}]
++|
++|let alert s = Js_of_ocaml.Dom_html.window##alert (Js_of_ocaml.Js.string s)
++|
++|let view_create_tasks_button =
++|  Vdom.(
++|    Node.button
++|      ~attr:
++|        (Attr.many
++|           [
++|             Attr.class_ Style.create_task_button;
++|             Attr.on_click (fun _e ->
++|                 alert "Not yet implemented.";
++|                 Ui_effect.Ignore);
++|           ])
++|      [ Node.text "Create Task" ])
++|
++|let view_create_tasks =
++|  Vdom.(
++|    Node.div [ Node.h2 [ Node.text "Create Tasks" ]; view_create_tasks_button ])
++|
++|let component = Computation.return view_create_tasks
+
+==== /client/create_task.mli ====
+-1,0 +1,4
++|open! Core
++|open! Bonsai_web
++|
++|val component : Vdom.Node.t Computation.t
+
+==== /client/main.ml ====
+-1,12 +1,50
+  open! Core
+  open! Async_kernel
+  open! Bonsai_web
+  
 +|(* This is here temporarily until we move it to the server. *)
 +|let global_tasks =
 +|  let open Month in
 +|  Value.return
 +|    [
 +|      {
-+|        Task.title = "Buy groceries";
-+|        completed_on = Some (Date.create_exn ~y:2022 ~m:Feb ~d:10);
++|        Common.Task.title = "Buy groceries";
++|        completion_status = Completed (Date.create_exn ~y:2022 ~m:Feb ~d:10);
 +|        due_date = Date.create_exn ~y:2023 ~m:Feb ~d:8;
 +|        description =
 +|          {|
@@ -25,8 +118,8 @@
 +|          |};
 +|      };
 +|      {
-+|        Task.title = "Create a Bonsai tutorial";
-+|        completed_on = None;
++|        title = "Create a Bonsai tutorial";
++|        completion_status = Todo;
 +|        due_date = Date.create_exn ~y:2023 ~m:Aug ~d:28;
 +|        description =
 +|          {|
@@ -34,8 +127,8 @@
 +|          |};
 +|      };
 +|      {
-+|        Task.title = "Study for complex analysis exam";
-+|        completed_on = None;
++|        title = "Study for MATH502 exam";
++|        completion_status = Todo;
 +|        due_date = Date.create_exn ~y:2023 ~m:Feb ~d:15;
 +|        description =
 +|          {|
@@ -44,15 +137,21 @@
 +|      };
 +|    ]
 +|
-+|let component = Tasks.component ~tasks:global_tasks
+  let run () =
+    let (_ : _ Start.Handle.t) =
+      Start.start Start.Result_spec.just_the_view ~bind_to_element_with_id:"app"
+-|      App.component
++|      (App.component ~tasks:global_tasks)
+    in
+    return ()
+  
+  let () = don't_wait_for (run ())
 
 ==== /client/tasks.ml ====
--1,0 +1,63
+-1,0 +1,66
 +|open! Core
-+|open! Bonsai
 +|open! Bonsai_web
 +|open Common
-+|open Bonsai.Let_syntax
 +|
 +|module Style =
 +|[%css.raw
@@ -61,8 +160,8 @@
 +|  box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);
 +|  transition: 0.3s;
 +|  padding: 2px 16px;
-+|  max-width: 300px;
-+|  margin: 20px;
++|  max-width: 500px;
++|  margin: 20px 0;
 +|}
 +|
 +|.task_tile:hover {
@@ -82,7 +181,14 @@
 +|  in
 +|  Vdom.Node.div inner
 +|
-+|let view_task { Task.completed_on; due_date; title; description } =
++|let view_task { Task.completion_status; due_date; title; description } =
++|  let view_completion =
++|    let open Vdom in
++|    match completion_status with
++|    | Todo -> Node.none
++|    | Completed date ->
++|        Node.p [ Node.textf "Completed: %s" (Date.to_string date) ]
++|  in
 +|  Vdom.(
 +|    Node.div
 +|      ~attr:(Attr.class_ Style.task_tile)
@@ -92,23 +198,21 @@
 +|          ~attr:(Attr.class_ Style.task_meta)
 +|          [
 +|            Node.p [ Node.textf "Due: %s" (Date.to_string due_date) ];
-+|            (match completed_on with
-+|            | None -> Node.none
-+|            | Some date ->
-+|                Node.p [ Node.textf "Completed: %s" (Date.to_string date) ]);
++|            view_completion;
 +|          ];
 +|        format_description description;
 +|      ])
 +|
 +|let view_tasks items =
 +|  Vdom.(
-+|    Node.div ~attr:(Attr.id "tasks")
++|    Node.div
 +|      [
-+|        Node.h1 [ Node.text "Your Tasks" ];
++|        Node.h2 [ Node.text "Your Tasks" ];
 +|        Node.div (List.map items ~f:view_task);
 +|      ])
 +|
 +|let component ~tasks =
++|  let open Bonsai.Let_syntax in
 +|  let%arr tasks = tasks in
 +|  view_tasks tasks
 
@@ -121,25 +225,33 @@
 +|val component : tasks:Task.t list Value.t -> Vdom.Node.t Computation.t
 
 ==== /common/task.ml ====
--1,0 +1,9
+-1,0 +1,13
 +|open! Core
 +|
++|module Completion_status = struct
++|  type t = Todo | Completed of Date.t [@@deriving sexp, bin_io, variants]
++|end
++|
 +|type t = {
-+|  completed_on : Date.t option;
-+|  due_date : Date.t;
 +|  title : string;
 +|  description : string;
++|  due_date : Date.t;
++|  completion_status : Completion_status.t;
 +|}
 +|[@@deriving sexp, bin_io, fields]
 
 ==== /common/task.mli ====
--1,0 +1,9
+-1,0 +1,13
 +|open! Core
 +|
++|module Completion_status : sig
++|  type t = Todo | Completed of Date.t [@@deriving sexp, bin_io, variants]
++|end
++|
 +|type t = {
-+|  completed_on : Date.t option;
-+|  due_date : Date.t;
 +|  title : string;
 +|  description : string;
++|  due_date : Date.t;
++|  completion_status : Completion_status.t;
 +|}
 +|[@@deriving sexp, bin_io, fields]

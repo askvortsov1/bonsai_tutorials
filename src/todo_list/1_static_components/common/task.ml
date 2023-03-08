@@ -1,9 +1,13 @@
 open! Core
 
+module Completion_status = struct
+  type t = Todo | Completed of Date.t [@@deriving sexp, bin_io, variants]
+end
+
 type t = {
-  completed_on : Date.t option;
-  due_date : Date.t;
   title : string;
   description : string;
+  due_date : Date.t;
+  completion_status : Completion_status.t;
 }
 [@@deriving sexp, bin_io, fields]

@@ -84,7 +84,6 @@ let%expect_test "valid project" =
               "open! Core\
              \nopen! Import\
              \nopen Bonsai_web\
-             \nopen Bonsai.Let_syntax\
              \n\
              \nmodule Action = struct\
              \n  type t =\
@@ -100,6 +99,7 @@ let%expect_test "valid project" =
              \n\
              \n(* $MDX part-begin=index_html *)\
              \nlet component ~label ?(by = Value.return 1) () =\
+             \n  let open Bonsai.Let_syntax in\
              \n  let module N = Vdom.Node in\
              \n  let module A = Vdom.Attr in\
              \n  let%sub state_and_inject =\

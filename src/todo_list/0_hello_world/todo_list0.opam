@@ -1,5 +1,5 @@
 opam-version: "2.0"
-synopsis: "Bonsai Todo-list Tutorial"
+synopsis: "Bonsai To-do List Tutorial"
 maintainer: ["You!"]
 depends: [
   "ocaml"

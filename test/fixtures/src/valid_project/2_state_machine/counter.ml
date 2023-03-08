@@ -1,7 +1,6 @@
 open! Core
 open! Import
 open Bonsai_web
-open Bonsai.Let_syntax
 
 module Action = struct
   type t =
@@ -17,6 +16,7 @@ let apply_action ~inject:_ ~schedule_event:_ by model = function
 
 (* $MDX part-begin=index_html *)
 let component ~label ?(by = Value.return 1) () =
+  let open Bonsai.Let_syntax in
   let module N = Vdom.Node in
   let module A = Vdom.Attr in
   let%sub state_and_inject =

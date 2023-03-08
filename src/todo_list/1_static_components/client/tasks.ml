@@ -1,8 +1,6 @@
 open! Core
-open! Bonsai
 open! Bonsai_web
 open Common
-open Bonsai.Let_syntax
 
 module Style =
 [%css.raw
@@ -11,8 +9,8 @@ module Style =
   box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);
   transition: 0.3s;
   padding: 2px 16px;
-  max-width: 300px;
-  margin: 20px;
+  max-width: 500px;
+  margin: 20px 0;
 }
 
 .task_tile:hover {
@@ -32,7 +30,14 @@ let format_description text =
   in
   Vdom.Node.div inner
 
-let view_task { Task.completed_on; due_date; title; description } =
+let view_task { Task.completion_status; due_date; title; description } =
+  let view_completion =
+    let open Vdom in
+    match completion_status with
+    | Todo -> Node.none
+    | Completed date ->
+        Node.p [ Node.textf "Completed: %s" (Date.to_string date) ]
+  in
   Vdom.(
     Node.div
       ~attr:(Attr.class_ Style.task_tile)
@@ -42,22 +47,20 @@ let view_task { Task.completed_on; due_date; title; description } =
           ~attr:(Attr.class_ Style.task_meta)
           [
             Node.p [ Node.textf "Due: %s" (Date.to_string due_date) ];
-            (match completed_on with
-            | None -> Node.none
-            | Some date ->
-                Node.p [ Node.textf "Completed: %s" (Date.to_string date) ]);
+            view_completion;
           ];
         format_description description;
       ])
 
 let view_tasks items =
   Vdom.(
-    Node.div ~attr:(Attr.id "tasks")
+    Node.div
       [
-        Node.h1 [ Node.text "Your Tasks" ];
+        Node.h2 [ Node.text "Your Tasks" ];
         Node.div (List.map items ~f:view_task);
       ])
 
 let component ~tasks =
+  let open Bonsai.Let_syntax in
   let%arr tasks = tasks in
   view_tasks tasks

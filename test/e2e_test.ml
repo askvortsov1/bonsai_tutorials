@@ -169,8 +169,9 @@ let%expect_test "save diffs" =
           \n  open! Core\
           \n  open! Import\
           \n+|open Bonsai_web\
-          \n+|open Bonsai.Let_syntax\
-          \n+|\
+          \n  \
+          \n-|let component ~label () =\
+          \n-|  let%sub count, set_count = Bonsai.state (module Int) (module Action) ~default_model:0 in\
           \n+|module Action = struct\
           \n+|  type t =\
           \n+|    | Incr\
@@ -182,10 +183,9 @@ let%expect_test "save diffs" =
           \n+|  | Action.Incr -> model + by\
           \n+|  | Decr -> model - by\
           \n+|;;\
-          \n-|let component ~label () =\
-          \n-|  let%sub count, set_count = Bonsai.state (module Int) (module Action) ~default_model:0 in\
           \n+|\
           \n+|let component ~label ?(by = Value.return 1) () =\
+          \n+|  let open Bonsai.Let_syntax in\
           \n+|  let module N = Vdom.Node in\
           \n+|  let module A = Vdom.Attr in\
           \n+|  let%sub state_and_inject =\

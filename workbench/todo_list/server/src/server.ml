@@ -22,7 +22,7 @@ let html =
   <head>
     <meta charset="UTF-8">
     <script defer src="main.js"></script>
-    <title> TODO-List </title>
+    <title> To-do List </title>
   </head>
 
   <body>
@@ -63,7 +63,7 @@ let main ~port =
   Cohttp_async.Server.close_finished server
 
 let command =
-  Command.async ~summary:"Start server for todo-list"
+  Command.async ~summary:"Start server for To-do list"
     (let%map_open.Command port =
        flag "port"
          (optional_with_default 8080 int)
