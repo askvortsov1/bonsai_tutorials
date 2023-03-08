@@ -242,5 +242,278 @@ Now let's do it all again!
 
 ### Task List
 
+The code for our task list will be very similar to what we just wrote.
+The biggest difference is that here, we need to take a list of tasks as input.
+In other words, instead of `Vdom.Node.t Computation.t`, we'll expose a `Task.t list Value.t -> Vdom.Node.t Computation.t`.
+
+> **Note:** Recall from the start of this article that `'a Value.t`s are incrementally computed values.
+A Bonsai component with inputs *could* take `'a` instead of `'a Value.t`, but then it wouldn't
+automatically update if the input changes. As a rule of thumb, your component inputs should be
+`'a Value.t`s, unless they are known to be constants.
+>
+> Some components can actually take other components as inputs; e.g.
+`'a Computation.t -> 'b Computation.t`. These are called
+[higher-order components](https://gist.github.com/TyOverby/cf9b79bab1cf96369411c761c9406d95),
+and we'll use them a bit later.
+
+In `client`, create `task_list.mli` with the following content:
+
+<!-- $MDX file=../../src/todo_list/1_static_components/client/task_list.mli -->
+```ocaml
+open! Core
+open! Bonsai_web
+open Common
+
+val component : tasks:Task.t list Value.t -> Vdom.Node.t Computation.t
+```
+
+To implement this component, we need to do 2 things:
+
+1. Gain access to the raw `Task.t list` value.
+2. Map it through a function that generates HTML vdom for each task.
+
+We accomplish the first part through a
+[monadic let operator](https://blog.janestreet.com/let-syntax-and-why-you-should-use-it/)
+called `let%arr`. Essentially, it:
+
+- Gives you access to the underlying `'a` of a `'a Value.t`
+- Lets you write code using that `'a` to produce some `'b`.
+  Typically, this would be `Vdom.Node.t`. So in our case, we would write
+  a view function with the signature `Task.t list -> Vdom.Node.t`
+- Wraps the `'b` output of your function in a `Computation.t`.
+
+Create `client/task_list.ml`, don't the `Core` and `Bonsai_web` module opens at the top,
+and add the following code:
+
+<!-- $MDX file=../../src/todo_list/1_static_components/client/task_list.ml,part=component_list -->
+```ocaml
+let view_task_list tasks =
+  Vdom.(
+    Node.div
+      [
+        Node.h2 [ Node.text "Your Tasks" ];
+        Node.div (List.map tasks ~f:view_task);
+      ])
+
+let component ~tasks =
+  let open Bonsai.Let_syntax in
+  let%arr tasks = tasks in
+  view_task_list tasks
+```
+
+`Bonsai.Let_syntax` provides `let%arr`, and another operator we'll use later.
+
+It isn't necessary to split out the `Task.t list -> Vdom.Node.t` view into a separate function,
+but we've done so here for readability.
+
+All that's left is to implement the `view_task` function, which constructs vdom for each task.
+This should be relatively straightforward, and we recommend trying to implement it on your own.
+
+Here's how we built and styled this view:
+
+<!-- $MDX file=../../src/todo_list/1_static_components/client/task_list.ml,part=tile_view -->
+```ocaml
+module Style =
+[%css.raw
+{|
+.task_tile {
+  box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);
+  transition: 0.3s;
+  padding: 2px 16px;
+  max-width: 500px;
+  margin: 20px 0;
+}
+
+.task_tile:hover {
+  box-shadow: 0 8px 16px 0 rgba(0,0,0,0.2);
+}
+.task_tile .task_meta {
+  border-top: 1px solid;
+  border-bottom: 1px solid;
+}
+|}]
+
+(* In a real product, we'd use a sophisticated Markdown -> HTML renderer. *)
+let format_description text =
+  let inner =
+    text |> String.split_lines
+    |> List.map ~f:(fun l -> Vdom.Node.p [ Vdom.Node.text l ])
+  in
+  Vdom.Node.div inner
+
+let view_task { Task.completion_status; due_date; title; description } =
+  let view_completion =
+    match completion_status with
+    | Todo -> Vdom.Node.none
+    | Completed date ->
+        Vdom.Node.p [ Vdom.Node.textf "Completed: %s" (Date.to_string date) ]
+  in
+  Vdom.(
+    Node.div
+      ~attr:(Attr.class_ Style.task_tile)
+      [
+        Node.h3 [ Node.text title ];
+        Node.div
+          ~attr:(Attr.class_ Style.task_meta)
+          [
+            Node.p [ Node.textf "Due: %s" (Date.to_string due_date) ];
+            view_completion;
+          ];
+        format_description description;
+      ])
+```
 
 ### Bringing It Together
+
+We've now built the components we need for a static todo-list prototype.
+Along the way, we've learned how to write HTML and CSS in Bonsai,
+and how to use incrementally computed inputs in components with `let%arr`.
+
+Now, we want to compose the task list and create task components into a parent `app` component.
+In other words, we have `'a Computation.t`, and we need access to the underlying `'a` value.
+
+As with `'a Value.t` and `let%arr`, we have a
+[monadic let operator](https://blog.janestreet.com/let-syntax-and-why-you-should-use-it/)
+called `let%sub`. It instantiates an `'a Computation.t` into an `'a Value.t`, with the
+caveat that your function must return some `'b Computation.t`.
+
+On its own, this doesn't let you do anything. But remember that `let%arr` unpacks
+`'a Value.t` into `'a`, allows you to return *anything*, and wraps that in a `Computation.t`.
+
+The usage pattern for working with `Value.t`s and `Computation.t`s is as follows:
+
+- Instantiate your `'a Computation.t`s into `'a Value.t`s with `let%sub` calls.
+  You should use a separate `let%sub` call for each computation you instantiate.
+- Unpack all the `'a Value.t`s with a `let%arr` call, and use them to compute the
+  component's output. Unlike `let%sub`, you should use just one `let%arr` call.
+
+In `client/app.ml`, replace the current `let component = ...` with:
+
+<!-- $MDX file=../../src/todo_list/1_static_components/client/app.ml,part=component -->
+```ocaml
+let component ~tasks =
+  let open Bonsai.Let_syntax in
+  let%sub task_list = Task_list.component ~tasks in
+  let%sub create_task = Create_task.component in
+  let%arr task_list = task_list and create_task = create_task in
+  Vdom.(
+    Node.div
+      ~attr:(Attr.many [ Attr.class_ Style.app; Attr.id "app" ])
+      [
+        Node.h1 ~attr:(Attr.class_ Style.title)
+          [ Node.text "Bonsai To-do List" ];
+        Node.div ~attr:(Attr.class_ Style.container) [ task_list; create_task ];
+      ])
+```
+
+Exactly as you'd expect. This component is very straightforward, so we didn't bother
+splitting out the view into a separate function.
+
+> **Note:** For some more examples of component composition, and comparisons with other
+> frameworks, see [this repo](https://github.com/TyOverby/composition-comparison/blob/main/readme.md).
+
+We wanted to put our two sections side-by-side, so here's how we styled the `app.ml` component:
+
+<!-- $MDX file=../../src/todo_list/1_static_components/client/app.ml,part=style -->
+```ocaml
+module Style =
+[%css.raw
+{|
+.app {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.title {
+ text-align: center
+}
+
+.container {
+  display: flex;
+  gap: 50px;
+}
+|}]
+```
+
+Don't forget to update `app.mli`, since the app now takes a list of tasks as input:
+
+<!-- $MDX file=../../src/todo_list/1_static_components/client/app.mli -->
+```ocaml
+open! Core
+open! Bonsai_web
+open Common
+
+val component : tasks:Task.t list Value.t -> Vdom.Node.t Computation.t
+```
+
+Finally, the last thing we need to do is add some tasks in `client/main.ml`, and pass them to
+`App.component` so we can see our to-do list in action.
+
+In the next few chapters, we'll expand our backend so that tasks come from there.
+
+For now, we'll just hardcode some, and wrap them in `Value.t`.
+
+Here's my to-do list:
+
+<!-- $MDX file=../../src/todo_list/1_static_components/client/main.ml,part=tasks -->
+```ocaml
+(* This is here temporarily until we move it to the server. *)
+let global_tasks =
+  let open Month in
+  Value.return
+    [
+      {
+        Common.Task.title = "Buy groceries";
+        completion_status = Completed (Date.create_exn ~y:2022 ~m:Feb ~d:10);
+        due_date = Date.create_exn ~y:2023 ~m:Feb ~d:8;
+        description =
+          {|
+            Going to make creme brulee! I need:
+            - Heavy cream
+            - Vanilla extract
+            - Eggs
+            - Sugar
+          |};
+      };
+      {
+        title = "Create a Bonsai tutorial";
+        completion_status = Todo;
+        due_date = Date.create_exn ~y:2023 ~m:Aug ~d:28;
+        description =
+          {|
+            Bonsai is awesome and I want to help make it easier to learn!
+          |};
+      };
+      {
+        title = "Study for MATH502 exam";
+        completion_status = Todo;
+        due_date = Date.create_exn ~y:2023 ~m:Feb ~d:15;
+        description =
+          {|
+            I should go through homeworks again, and solve textbook exercises.
+          |};
+      };
+    ]
+```
+
+Now, update `run` to pass them to `App.component`:
+
+<!-- $MDX file=../../src/todo_list/1_static_components/client/main.ml,part=with_tasks -->
+```ocaml
+let run () =
+  let (_ : _ Start.Handle.t) =
+    Start.start Start.Result_spec.just_the_view ~bind_to_element_with_id:"app"
+      (App.component ~tasks:global_tasks)
+  in
+  return ()
+```
+
+And that's it! Everything should build, and if you run the app and
+go to [localhost:8080](http://localhost:8080), you should see the to-do list in action.
+
+Before moving onto the next chapter, we heavily recommend playing around with this a bit.
+Add some css! Change the HTML! Add a completely unrelated component to practice composition!
+
+In the [next chapter](...), we'll implement an RPC backend, and use that to get our list of
+tasks.

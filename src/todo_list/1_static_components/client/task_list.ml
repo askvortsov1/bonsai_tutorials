@@ -2,6 +2,7 @@ open! Core
 open! Bonsai_web
 open Common
 
+(* $MDX part-begin=tile_view *)
 module Style =
 [%css.raw
 {|
@@ -22,7 +23,7 @@ module Style =
 }
 |}]
 
-(* In a real product, we'd use a more sophisticated Markdown -> HTML renderer. *)
+(* In a real product, we'd use a sophisticated Markdown -> HTML renderer. *)
 let format_description text =
   let inner =
     text |> String.split_lines
@@ -32,11 +33,10 @@ let format_description text =
 
 let view_task { Task.completion_status; due_date; title; description } =
   let view_completion =
-    let open Vdom in
     match completion_status with
-    | Todo -> Node.none
+    | Todo -> Vdom.Node.none
     | Completed date ->
-        Node.p [ Node.textf "Completed: %s" (Date.to_string date) ]
+        Vdom.Node.p [ Vdom.Node.textf "Completed: %s" (Date.to_string date) ]
   in
   Vdom.(
     Node.div
@@ -51,16 +51,19 @@ let view_task { Task.completion_status; due_date; title; description } =
           ];
         format_description description;
       ])
+(* $MDX part-end *)
 
-let view_tasks items =
+(* $MDX part-begin=component_list *)
+let view_task_list tasks =
   Vdom.(
     Node.div
       [
         Node.h2 [ Node.text "Your Tasks" ];
-        Node.div (List.map items ~f:view_task);
+        Node.div (List.map tasks ~f:view_task);
       ])
 
 let component ~tasks =
   let open Bonsai.Let_syntax in
   let%arr tasks = tasks in
-  view_tasks tasks
+  view_task_list tasks
+(* $MDX part-end *)

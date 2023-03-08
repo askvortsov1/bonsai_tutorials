@@ -290,5 +290,5 @@ returned by the server, which we discussed earlier.
 
 And that's "Hello World"!
 
-In the [next chapter](./1_static_layout.md), we'll learn how to build and style components in Bonsai;
+In the [next chapter](./1_static_components.md), we'll learn how to build and style components in Bonsai;
 in other words, how to write HTML and CSS in OCaml.

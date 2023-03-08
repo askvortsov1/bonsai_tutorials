@@ -1,6 +1,7 @@
 open! Core
 open! Bonsai_web
 
+(* $MDX part-begin=style *)
 module Style =
 [%css.raw
 {|
@@ -19,7 +20,9 @@ module Style =
   gap: 50px;
 }
 |}]
+(* $MDX part-end *)
 
+(* $MDX part-begin=component *)
 let component ~tasks =
   let open Bonsai.Let_syntax in
   let%sub task_list = Task_list.component ~tasks in
@@ -33,3 +36,4 @@ let component ~tasks =
           [ Node.text "Bonsai To-do List" ];
         Node.div ~attr:(Attr.class_ Style.container) [ task_list; create_task ];
       ])
+(* $MDX part-end *)

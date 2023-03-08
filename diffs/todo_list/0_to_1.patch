@@ -132,7 +132,7 @@
 +|        due_date = Date.create_exn ~y:2023 ~m:Feb ~d:15;
 +|        description =
 +|          {|
-+|            I should go through homeworks again, and solve exercise textbook problems.
++|            I should go through homeworks again, and solve textbook exercises.
 +|          |};
 +|      };
 +|    ]
@@ -148,7 +148,7 @@
   let () = don't_wait_for (run ())
 
 ==== /client/task_list.ml ====
--1,0 +1,66
+-1,0 +1,65
 +|open! Core
 +|open! Bonsai_web
 +|open Common
@@ -173,7 +173,7 @@
 +|}
 +||}]
 +|
-+|(* In a real product, we'd use a more sophisticated Markdown -> HTML renderer. *)
++|(* In a real product, we'd use a sophisticated Markdown -> HTML renderer. *)
 +|let format_description text =
 +|  let inner =
 +|    text |> String.split_lines
@@ -183,11 +183,10 @@
 +|
 +|let view_task { Task.completion_status; due_date; title; description } =
 +|  let view_completion =
-+|    let open Vdom in
 +|    match completion_status with
-+|    | Todo -> Node.none
++|    | Todo -> Vdom.Node.none
 +|    | Completed date ->
-+|        Node.p [ Node.textf "Completed: %s" (Date.to_string date) ]
++|        Vdom.Node.p [ Vdom.Node.textf "Completed: %s" (Date.to_string date) ]
 +|  in
 +|  Vdom.(
 +|    Node.div
@@ -203,18 +202,18 @@
 +|        format_description description;
 +|      ])
 +|
-+|let view_tasks items =
++|let view_task_list tasks =
 +|  Vdom.(
 +|    Node.div
 +|      [
 +|        Node.h2 [ Node.text "Your Tasks" ];
-+|        Node.div (List.map items ~f:view_task);
++|        Node.div (List.map tasks ~f:view_task);
 +|      ])
 +|
 +|let component ~tasks =
 +|  let open Bonsai.Let_syntax in
 +|  let%arr tasks = tasks in
-+|  view_tasks tasks
++|  view_task_list tasks
 
 ==== /client/task_list.mli ====
 -1,0 +1,5
