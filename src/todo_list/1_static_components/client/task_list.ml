@@ -31,7 +31,8 @@ let format_description text =
   in
   Vdom.Node.div inner
 
-let view_task { Task.completion_status; due_date; title; description } =
+let view_task
+    { Task.completion_status; due_date; title; description; id = (_ : int) } =
   let view_completion =
     match completion_status with
     | Todo -> Vdom.Node.none

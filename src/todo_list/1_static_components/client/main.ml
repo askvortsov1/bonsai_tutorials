@@ -10,6 +10,7 @@ let global_tasks =
     [
       {
         Common.Task.title = "Buy groceries";
+        id = 0;
         completion_status = Completed (Date.create_exn ~y:2022 ~m:Feb ~d:10);
         due_date = Date.create_exn ~y:2023 ~m:Feb ~d:8;
         description =
@@ -23,6 +24,7 @@ let global_tasks =
       };
       {
         title = "Create a Bonsai tutorial";
+        id = 1;
         completion_status = Todo;
         due_date = Date.create_exn ~y:2023 ~m:Aug ~d:28;
         description =
@@ -32,6 +34,7 @@ let global_tasks =
       };
       {
         title = "Study for MATH502 exam";
+        id = 2;
         completion_status = Todo;
         due_date = Date.create_exn ~y:2023 ~m:Feb ~d:15;
         description =

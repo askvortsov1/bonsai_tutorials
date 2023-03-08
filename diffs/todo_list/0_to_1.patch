@@ -94,7 +94,7 @@
 +|val component : Vdom.Node.t Computation.t
 
 ==== /client/main.ml ====
--1,12 +1,50
+-1,12 +1,53
   open! Core
   open! Async_kernel
   open! Bonsai_web
@@ -106,6 +106,7 @@
 +|    [
 +|      {
 +|        Common.Task.title = "Buy groceries";
++|        id = 0;
 +|        completion_status = Completed (Date.create_exn ~y:2022 ~m:Feb ~d:10);
 +|        due_date = Date.create_exn ~y:2023 ~m:Feb ~d:8;
 +|        description =
@@ -119,6 +120,7 @@
 +|      };
 +|      {
 +|        title = "Create a Bonsai tutorial";
++|        id = 1;
 +|        completion_status = Todo;
 +|        due_date = Date.create_exn ~y:2023 ~m:Aug ~d:28;
 +|        description =
@@ -128,6 +130,7 @@
 +|      };
 +|      {
 +|        title = "Study for MATH502 exam";
++|        id = 2;
 +|        completion_status = Todo;
 +|        due_date = Date.create_exn ~y:2023 ~m:Feb ~d:15;
 +|        description =
@@ -148,7 +151,7 @@
   let () = don't_wait_for (run ())
 
 ==== /client/task_list.ml ====
--1,0 +1,65
+-1,0 +1,66
 +|open! Core
 +|open! Bonsai_web
 +|open Common
@@ -181,7 +184,8 @@
 +|  in
 +|  Vdom.Node.div inner
 +|
-+|let view_task { Task.completion_status; due_date; title; description } =
++|let view_task
++|    { Task.completion_status; due_date; title; description; id = (_ : int) } =
 +|  let view_completion =
 +|    match completion_status with
 +|    | Todo -> Vdom.Node.none
@@ -224,7 +228,7 @@
 +|val component : tasks:Task.t list Value.t -> Vdom.Node.t Computation.t
 
 ==== /common/task.ml ====
--1,0 +1,13
+-1,0 +1,14
 +|open! Core
 +|
 +|module Completion_status = struct
@@ -232,6 +236,7 @@
 +|end
 +|
 +|type t = {
++|  id : int;
 +|  title : string;
 +|  description : string;
 +|  due_date : Date.t;
@@ -240,7 +245,7 @@
 +|[@@deriving sexp, bin_io, fields]
 
 ==== /common/task.mli ====
--1,0 +1,13
+-1,0 +1,14
 +|open! Core
 +|
 +|module Completion_status : sig
@@ -248,6 +253,7 @@
 +|end
 +|
 +|type t = {
++|  id : int;
 +|  title : string;
 +|  description : string;
 +|  due_date : Date.t;

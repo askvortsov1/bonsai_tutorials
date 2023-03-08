@@ -29,7 +29,7 @@ get or change data, the backend will perform database queries, and return the re
 the frontend, as a serialized data structure. Because our frontend and backend are both in
 OCaml, they can share the same data model!
 
-A simple task should probably have a title, description, due date, and completion status.
+A simple task should probably have a title, description, id, due date, and completion status.
 So that's exactly what our model will look like! In `common`, create `task.ml` with the following
 contents:
 
@@ -42,6 +42,7 @@ module Completion_status = struct
 end
 
 type t = {
+  id : int;
   title : string;
   description : string;
   due_date : Date.t;
@@ -70,6 +71,7 @@ module Completion_status : sig
 end
 
 type t = {
+  id : int;
   title : string;
   description : string;
   due_date : Date.t;
@@ -341,7 +343,8 @@ let format_description text =
   in
   Vdom.Node.div inner
 
-let view_task { Task.completion_status; due_date; title; description } =
+let view_task
+    { Task.completion_status; due_date; title; description; id = (_ : int) } =
   let view_completion =
     match completion_status with
     | Todo -> Vdom.Node.none
@@ -465,6 +468,7 @@ let global_tasks =
     [
       {
         Common.Task.title = "Buy groceries";
+        id = 0;
         completion_status = Completed (Date.create_exn ~y:2022 ~m:Feb ~d:10);
         due_date = Date.create_exn ~y:2023 ~m:Feb ~d:8;
         description =
@@ -478,6 +482,7 @@ let global_tasks =
       };
       {
         title = "Create a Bonsai tutorial";
+        id = 1;
         completion_status = Todo;
         due_date = Date.create_exn ~y:2023 ~m:Aug ~d:28;
         description =
@@ -487,6 +492,7 @@ let global_tasks =
       };
       {
         title = "Study for MATH502 exam";
+        id = 2;
         completion_status = Todo;
         due_date = Date.create_exn ~y:2023 ~m:Feb ~d:15;
         description =

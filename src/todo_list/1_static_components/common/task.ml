@@ -5,6 +5,7 @@ module Completion_status = struct
 end
 
 type t = {
+  id : int;
   title : string;
   description : string;
   due_date : Date.t;
