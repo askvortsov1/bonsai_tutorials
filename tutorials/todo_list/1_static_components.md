@@ -38,16 +38,19 @@ contents:
 open! Core
 
 module Completion_status = struct
-  type t = Todo | Completed of Date.t [@@deriving sexp, bin_io, variants]
+  type t =
+    | Todo
+    | Completed of Date.t
+  [@@deriving sexp, bin_io, variants]
 end
 
-type t = {
-  id : int;
-  title : string;
-  description : string;
-  due_date : Date.t;
-  completion_status : Completion_status.t;
-}
+type t =
+  { id : int
+  ; title : string
+  ; description : string
+  ; due_date : Date.t
+  ; completion_status : Completion_status.t
+  }
 [@@deriving sexp, bin_io, fields]
 ```
 
@@ -67,16 +70,19 @@ The corresponding `task.mli` should be pretty much identical:
 open! Core
 
 module Completion_status : sig
-  type t = Todo | Completed of Date.t [@@deriving sexp, bin_io, variants]
+  type t =
+    | Todo
+    | Completed of Date.t
+  [@@deriving sexp, bin_io, variants]
 end
 
-type t = {
-  id : int;
-  title : string;
-  description : string;
-  due_date : Date.t;
-  completion_status : Completion_status.t;
-}
+type t =
+  { id : int
+  ; title : string
+  ; description : string
+  ; due_date : Date.t
+  ; completion_status : Completion_status.t
+  }
 [@@deriving sexp, bin_io, fields]
 ```
 
@@ -168,8 +174,8 @@ So with that in mind, here's how we'll implement the create tasks section:
 <!-- $MDX file=../../src/todo_list/1_static_components/client/create_task.ml,part=component_no_button -->
 ```ocaml
 let view_create_tasks =
-  Vdom.(
-    Node.div [ Node.h2 [ Node.text "Create Tasks" ]; view_create_tasks_button ])
+  Vdom.(Node.div [ Node.h2 [ Node.text "Create Tasks" ]; view_create_tasks_button ])
+;;
 
 let component = Computation.return view_create_tasks
 ```
@@ -188,13 +194,13 @@ let view_create_tasks_button =
     Node.button
       ~attr:
         (Attr.many
-           [
-             Attr.class_ Style.create_task_button;
-             Attr.on_click (fun _e ->
-                 alert "Not yet implemented.";
-                 Ui_effect.Ignore);
+           [ Attr.class_ Style.create_task_button
+           ; Attr.on_click (fun _e ->
+               alert "Not yet implemented.";
+               Ui_effect.Ignore)
            ])
       [ Node.text "Create Task" ])
+;;
 ```
 
 This vdom looks a bit messier, but that's just because we need an extra wrapper function to
@@ -292,15 +298,14 @@ and add the following code:
 let view_task_list tasks =
   Vdom.(
     Node.div
-      [
-        Node.h2 [ Node.text "Your Tasks" ];
-        Node.div (List.map tasks ~f:view_task);
-      ])
+      [ Node.h2 [ Node.text "Your Tasks" ]; Node.div (List.map tasks ~f:view_task) ])
+;;
 
 let component ~tasks =
   let open Bonsai.Let_syntax in
   let%arr tasks = tasks in
   view_task_list tasks
+;;
 ```
 
 `Bonsai.Let_syntax` provides `let%arr`, and another operator we'll use later.
@@ -338,32 +343,28 @@ module Style =
 (* In a real product, we'd use a sophisticated Markdown -> HTML renderer. *)
 let format_description text =
   let inner =
-    text |> String.split_lines
-    |> List.map ~f:(fun l -> Vdom.Node.p [ Vdom.Node.text l ])
+    text |> String.split_lines |> List.map ~f:(fun l -> Vdom.Node.p [ Vdom.Node.text l ])
   in
   Vdom.Node.div inner
+;;
 
-let view_task
-    { Task.completion_status; due_date; title; description; id = (_ : int) } =
+let view_task { Task.completion_status; due_date; title; description; id = (_ : int) } =
   let view_completion =
     match completion_status with
     | Todo -> Vdom.Node.none
     | Completed date ->
-        Vdom.Node.p [ Vdom.Node.textf "Completed: %s" (Date.to_string date) ]
+      Vdom.Node.p [ Vdom.Node.textf "Completed: %s" (Date.to_string date) ]
   in
   Vdom.(
     Node.div
       ~attr:(Attr.class_ Style.task_tile)
-      [
-        Node.h3 [ Node.text title ];
-        Node.div
+      [ Node.h3 [ Node.text title ]
+      ; Node.div
           ~attr:(Attr.class_ Style.task_meta)
-          [
-            Node.p [ Node.textf "Due: %s" (Date.to_string due_date) ];
-            view_completion;
-          ];
-        format_description description;
+          [ Node.p [ Node.textf "Due: %s" (Date.to_string due_date) ]; view_completion ]
+      ; format_description description
       ])
+;;
 ```
 
 ### Bringing It Together
@@ -398,15 +399,15 @@ let component ~tasks =
   let open Bonsai.Let_syntax in
   let%sub task_list = Task_list.component ~tasks in
   let%sub create_task = Create_task.component in
-  let%arr task_list = task_list and create_task = create_task in
+  let%arr task_list = task_list
+  and create_task = create_task in
   Vdom.(
     Node.div
       ~attr:(Attr.many [ Attr.class_ Style.app; Attr.id "app" ])
-      [
-        Node.h1 ~attr:(Attr.class_ Style.title)
-          [ Node.text "Bonsai To-do List" ];
-        Node.div ~attr:(Attr.class_ Style.container) [ task_list; create_task ];
+      [ Node.h1 ~attr:(Attr.class_ Style.title) [ Node.text "Bonsai To-do List" ]
+      ; Node.div ~attr:(Attr.class_ Style.container) [ task_list; create_task ]
       ])
+;;
 ```
 
 Exactly as you'd expect. This component is very straightforward, so we didn't bother
@@ -465,42 +466,39 @@ Here's my to-do list:
 let global_tasks =
   let open Month in
   Value.return
-    [
-      {
-        Common.Task.title = "Buy groceries";
-        id = 0;
-        completion_status = Completed (Date.create_exn ~y:2022 ~m:Feb ~d:10);
-        due_date = Date.create_exn ~y:2023 ~m:Feb ~d:8;
-        description =
+    [ { Common.Task.title = "Buy groceries"
+      ; id = 0
+      ; completion_status = Completed (Date.create_exn ~y:2022 ~m:Feb ~d:10)
+      ; due_date = Date.create_exn ~y:2023 ~m:Feb ~d:8
+      ; description =
           {|
             Going to make creme brulee! I need:
             - Heavy cream
             - Vanilla extract
             - Eggs
             - Sugar
-          |};
-      };
-      {
-        title = "Create a Bonsai tutorial";
-        id = 1;
-        completion_status = Todo;
-        due_date = Date.create_exn ~y:2023 ~m:Aug ~d:28;
-        description =
+          |}
+      }
+    ; { title = "Create a Bonsai tutorial"
+      ; id = 1
+      ; completion_status = Todo
+      ; due_date = Date.create_exn ~y:2023 ~m:Aug ~d:28
+      ; description =
           {|
             Bonsai is awesome and I want to help make it easier to learn!
-          |};
-      };
-      {
-        title = "Study for MATH502 exam";
-        id = 2;
-        completion_status = Todo;
-        due_date = Date.create_exn ~y:2023 ~m:Feb ~d:15;
-        description =
+          |}
+      }
+    ; { title = "Study for MATH502 exam"
+      ; id = 2
+      ; completion_status = Todo
+      ; due_date = Date.create_exn ~y:2023 ~m:Feb ~d:15
+      ; description =
           {|
             I should go through homeworks again, and solve textbook exercises.
-          |};
-      };
+          |}
+      }
     ]
+;;
 ```
 
 Now, update `run` to pass them to `App.component`:
@@ -509,10 +507,13 @@ Now, update `run` to pass them to `App.component`:
 ```ocaml
 let run () =
   let (_ : _ Start.Handle.t) =
-    Start.start Start.Result_spec.just_the_view ~bind_to_element_with_id:"app"
+    Start.start
+      Start.Result_spec.just_the_view
+      ~bind_to_element_with_id:"app"
       (App.component ~tasks:global_tasks)
   in
   return ()
+;;
 ```
 
 And that's it! Everything should build, and if you run the app and

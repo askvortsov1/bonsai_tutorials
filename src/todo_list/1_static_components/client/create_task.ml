@@ -27,19 +27,20 @@ let view_create_tasks_button =
     Node.button
       ~attr:
         (Attr.many
-           [
-             Attr.class_ Style.create_task_button;
-             Attr.on_click (fun _e ->
-                 alert "Not yet implemented.";
-                 Ui_effect.Ignore);
+           [ Attr.class_ Style.create_task_button
+           ; Attr.on_click (fun _e ->
+               alert "Not yet implemented.";
+               Ui_effect.Ignore)
            ])
       [ Node.text "Create Task" ])
+;;
+
 (* $MDX part-end *)
 
 (* $MDX part-begin=component_no_button *)
 let view_create_tasks =
-  Vdom.(
-    Node.div [ Node.h2 [ Node.text "Create Tasks" ]; view_create_tasks_button ])
+  Vdom.(Node.div [ Node.h2 [ Node.text "Create Tasks" ]; view_create_tasks_button ])
+;;
 
 let component = Computation.return view_create_tasks
 (* $MDX part-end *)
