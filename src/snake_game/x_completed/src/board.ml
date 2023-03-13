@@ -68,6 +68,13 @@ let view_end_message status =
     Vdom.(Node.p [ Node.text message_text ])
 ;;
 
+let grid_vars_styles ~rows ~cols =
+  let open Css_gen in
+  Css_gen.create ~field:"--grid-rows" ~value:(Int.to_string rows)
+  @> Css_gen.create ~field:"--grid-cols" ~value:(Int.to_string cols)
+  @> Css_gen.create ~field:"color" ~value:"green"
+;;
+
 let view_board rows cols snake apple =
   let cell_t_of_pos = Cell.t_of_pos ~snake ~apple in
   let cells =
@@ -78,32 +85,15 @@ let view_board rows cols snake apple =
         Vdom.(Node.div ~attr:(Attr.classes [ Style.grid_cell; class_ ]) [])))
     |> List.concat
   in
-  Vdom.(Node.div ~attr:(Attr.class_ Style.grid) cells)
-;;
-
-let set_style_property key value =
-  let open Js_of_ocaml in
-  let priority = Js.undefined in
-  let res =
-    Dom_html.document##.documentElement##.style##setProperty
-      (Js.string key)
-      (Js.string value)
-      priority
-  in
-  ignore res
+  Vdom.(
+    Node.div
+      ~attr:
+        (Attr.many [ Attr.class_ Style.grid; Attr.style (grid_vars_styles ~rows ~cols) ])
+      cells)
 ;;
 
 let component ~rows ~cols player apple =
   let open Bonsai.Let_syntax in
-  let on_activate =
-    Ui_effect.of_sync_fun
-      (fun () ->
-        set_style_property "--grid-rows" (Int.to_string rows);
-        set_style_property "--grid-cols" (Int.to_string cols))
-      ()
-    |> Value.return
-  in
-  let%sub () = Bonsai.Edge.lifecycle ~on_activate () in
   let%arr { Player.score; snake; status } = player
   and apple = apple in
   Vdom.(
