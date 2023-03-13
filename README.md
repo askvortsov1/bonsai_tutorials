@@ -15,11 +15,16 @@ At the moment, we have 2 tutorials.
   - `match%sub`, which evaluates one of several computations
   - `assoc`, which evaluates a dynamic number of computations in parallel
 
+The first 2 chapters of `todo_list` teach you how to build and compose static components in Bonsai.
+You should do these before the other tutorials.
+The rest of `todo_list` will teach you how to use forms, RPC, routing, higher-order components, and all the
+other tools mentioned above.
+
 `snake_game` implements a simple version of the classic video game in Bonsai.
 This tutorial focuses on Bonsai's state tools, and patterns for sharing state between components.
 It'll also give you practice building interactive, reactive applications.
 
-I recommend following the tutorials in this order. `todo_list` introduces a wide variety of concepts, while `snake_game` dives deeper into state.
+I recommend doing the tutorials in this order. `todo_list` introduces a wide variety of concepts, while `snake_game` dives deeper into state.
 
 Each tutorial is split into bite-sized chapter, along with what the code should look like by the end.
 

@@ -95,6 +95,7 @@ let set_style_property key value =
 
 let component ~rows ~cols player apple =
   let open Bonsai.Let_syntax in
+  (* TODO: use `Attr.css_var` instead. *)
   let on_activate =
     Ui_effect.of_sync_fun
       (fun () ->
