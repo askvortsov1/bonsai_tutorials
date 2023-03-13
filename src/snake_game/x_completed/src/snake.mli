@@ -8,4 +8,5 @@ val head : t -> Position.t
 val is_eatting_self : t -> bool
 val is_out_of_bounds : rows:int -> cols:int -> t -> bool
 val spawn_random : rows:int -> cols:int -> t
-val move : grow:bool -> t -> Direction.t -> t
+val move : t -> Direction.t -> t
+val grow_eventually : by:int -> t -> t

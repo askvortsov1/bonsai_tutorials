@@ -5,6 +5,7 @@ module Style =
 [%css.raw
 {|
 .grid {
+  width: 600px;
   display: grid;
   grid-template-rows: repeat(var(--grid-rows), 1fr);
   grid-template-columns: repeat(var(--grid-cols), 1fr);
@@ -12,6 +13,9 @@ module Style =
 
 .grid_cell {
   border: 2px solid gray;
+  /* Hack to make the cells square */
+  padding-bottom: 100%;
+  height: 0;
 }
 
 .snake_cell {
@@ -51,6 +55,19 @@ module Cell = struct
   ;;
 end
 
+let view_end_message status =
+  match status with
+  | Player_status.Playing -> Vdom.Node.none
+  | Inactive reason ->
+    let message_text =
+      match reason with
+      | Not_started -> "Click to start!"
+      | Out_of_bounds -> "Game over... Out of bounds!"
+      | Ate_self -> "Game over... Ate self!"
+    in
+    Vdom.(Node.p [ Node.text message_text ])
+;;
+
 let view_board rows cols snake apple =
   let cell_t_of_pos = Cell.t_of_pos ~snake ~apple in
   let cells =
@@ -58,10 +75,7 @@ let view_board rows cols snake apple =
       List.init cols ~f:(fun col ->
         let pos = { Position.row; col } in
         let class_ = Cell.classname_of_t (cell_t_of_pos pos) in
-        Vdom.(
-          Node.div
-            ~attr:(Attr.classes [ Style.grid_cell; class_ ])
-            [ Node.textf "%d,%d" row col ])))
+        Vdom.(Node.div ~attr:(Attr.classes [ Style.grid_cell; class_ ]) [])))
     |> List.concat
   in
   Vdom.(Node.div ~attr:(Attr.class_ Style.grid) cells)
@@ -76,10 +90,10 @@ let set_style_property key value =
       (Js.string value)
       priority
   in
-  Firebug.console##log res
+  ignore res
 ;;
 
-let component ~reset_action ~rows ~cols player apple =
+let component ~rows ~cols player apple =
   let open Bonsai.Let_syntax in
   let on_activate =
     Ui_effect.of_sync_fun
@@ -90,15 +104,14 @@ let component ~reset_action ~rows ~cols player apple =
     |> Value.return
   in
   let%sub () = Bonsai.Edge.lifecycle ~on_activate () in
-  let%arr { Player.score; snake } = player
-  and apple = apple
-  and reset_action = reset_action in
+  let%arr { Player.score; snake; status } = player
+  and apple = apple in
   Vdom.(
     Node.div
-      [ Node.button
-          ~attr:(Attr.on_click (fun _ -> reset_action))
-          [ Node.text "Reset game" ]
+      [ Node.h1 [ Node.text "Snake Game" ]
+      ; Node.p [ Node.text "Click anywhere to restart." ]
       ; Node.p [ Node.textf "Score: %d" score ]
+      ; view_end_message status
       ; view_board rows cols snake apple
       ])
 ;;

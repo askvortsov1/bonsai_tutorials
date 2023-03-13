@@ -4,6 +4,7 @@ open! Bonsai
 type t =
   { score : int
   ; snake : Snake.t
+  ; status : Player_status.t
   }
 [@@deriving sexp, fields]
 
@@ -12,7 +13,6 @@ module Model = struct
     { score : int
     ; snake : Snake.t
     ; direction : Direction.t
-    ; left_to_grow : int
     ; status : Player_status.t
     }
   [@@deriving sexp, equal]
@@ -22,6 +22,7 @@ module Action = struct
   type t =
     | Restart
     | Move of (Apple.t * (Apple.Action.t -> unit Effect.t))
+    | Change_direction of Direction.t
   [@@deriving sexp]
 end
 
@@ -30,12 +31,7 @@ let ate_apple_score = 1
 let default_model ~rows ~cols =
   (* Spawn in left half, going right*)
   let snake = Snake.spawn_random ~rows ~cols:(cols / 2) in
-  { Model.score = 0
-  ; left_to_grow = 0
-  ; snake
-  ; direction = Right
-  ; status = Inactive Not_started
-  }
+  { Model.score = 0; snake; direction = Right; status = Inactive Not_started }
 ;;
 
 let apply_action
@@ -51,15 +47,7 @@ let apply_action
     let default = default_model ~rows ~cols in
     { default with status = Playing }
   | Move (apple, apple_inject), Playing ->
-    let left_to_grow = Int.max 0 (model.left_to_grow - 1) in
-    let snake = Snake.move model.snake model.direction ~grow:(model.left_to_grow > 0) in
-    let ate_apple = Option.mem apple (Snake.head snake) ~equal:Position.equal in
-    let score_delta = if ate_apple then ate_apple_score else 0 in
-    let score = model.score + score_delta in
-    let apple_effect =
-      if ate_apple then apple_inject Apple.Action.Eatten else Effect.Ignore
-    in
-    schedule_event apple_effect;
+    let snake = Snake.move model.snake model.direction in
     let (status : Player_status.t) =
       if Snake.is_eatting_self snake
       then Inactive Ate_self
@@ -67,8 +55,18 @@ let apply_action
       then Inactive Out_of_bounds
       else Playing
     in
-    { Model.direction = model.direction; snake; score; status; left_to_grow }
-  | Move _, Inactive _ -> model
+    let ate_apple = Option.mem apple (Snake.head snake) ~equal:Position.equal in
+    if ate_apple
+    then (
+      let () = schedule_event (apple_inject Apple.Action.Eatten) in
+      { Model.direction = model.direction
+      ; snake = Snake.grow_eventually ~by:1 snake
+      ; score = model.score + ate_apple_score
+      ; status
+      })
+    else { Model.direction = model.direction; snake; score = model.score; status }
+  | Change_direction dir, Playing -> { model with direction = dir }
+  | Move _, Inactive _ | Change_direction _, Inactive _ -> model
 ;;
 
 let computation ~rows ~cols =
@@ -83,5 +81,5 @@ let computation ~rows ~cols =
   in
   let%arr model = model
   and inject = inject in
-  { snake = model.snake; score = model.score }, inject
+  { snake = model.snake; score = model.score; status = model.status }, inject
 ;;

@@ -1,8 +1,26 @@
 open! Core
 open! Bonsai_web
 
+module Style =
+[%css.raw
+{|
+html,body{min-height:100%; height:100%;}
+
+.app {
+  width: 100%;
+  height: 100%;
+}
+|}]
+
 let rows = 20
 let cols = 20
+
+let get_keypress_key evt =
+  evt##.code
+  |> Js_of_ocaml.Js.Optdef.to_option
+  |> Option.value_exn
+  |> Js_of_ocaml.Js.to_string
+;;
 
 let component =
   let open Bonsai.Let_syntax in
@@ -14,20 +32,41 @@ let component =
   in
   let%sub apple, apple_inject = Apple.computation ~rows ~cols ~invalid_pos in
   (* Tick logic *)
-  let%sub clock_action =
-    let%arr player_inject = player_inject
-    and apple = apple
-    and apple_inject = apple_inject in
-    player_inject (Move (apple, apple_inject))
+  let%sub () =
+    let%sub clock_effect =
+      let%arr player_inject = player_inject
+      and apple = apple
+      and apple_inject = apple_inject in
+      player_inject (Move (apple, apple_inject))
+    in
+    Bonsai.Clock.every [%here] (Time_ns.Span.of_sec 0.25) clock_effect
   in
-  let%sub () = Bonsai.Clock.every [%here] (Time_ns.Span.of_sec 1.0) clock_action in
   (* Reset logic *)
   let%sub reset_action =
     let%arr player_inject = player_inject
     and apple_inject = apple_inject in
     Effect.Many [ player_inject Restart; apple_inject Spawn ]
   in
-  let%sub () = Bonsai.Edge.lifecycle ~on_activate:reset_action () in
   (* View component *)
-  Board.component ~reset_action ~rows ~cols player apple
+  let%sub board = Board.component ~rows ~cols player apple in
+  let%arr board = board
+  and player_inject = player_inject
+  and reset_action = reset_action in
+  let on_keypress evt =
+    match get_keypress_key evt with
+    | "KeyW" -> player_inject (Change_direction Up)
+    | "KeyS" -> player_inject (Change_direction Down)
+    | "KeyA" -> player_inject (Change_direction Left)
+    | "KeyD" -> player_inject (Change_direction Right)
+    | _ -> Effect.Ignore
+  in
+  Vdom.(
+    Node.div
+      ~attr:
+        (Attr.many
+           [ Attr.on_keypress on_keypress
+           ; Attr.on_click (fun _ -> reset_action)
+           ; Attr.class_ Style.app
+           ])
+      [ board ])
 ;;

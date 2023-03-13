@@ -2,6 +2,7 @@
  (names main)
  (modes js)
  (libraries
+  js_of_ocaml
   async_kernel
   async_js
   core_kernel.composition_infix
