@@ -1,0 +1,312 @@
+==== /src/app.ml ====
+-12,61 +12,73
+  }
+  |}]
+  
+  let rows = 20
+  let cols = 20
+  
+  let get_keydown_key evt =
+    evt##.code
+    |> Js_of_ocaml.Js.Optdef.to_option
+    |> Option.value_exn
+    |> Js_of_ocaml.Js.to_string
+  ;;
+  
+  let component =
+    let open Bonsai.Let_syntax in
+    (* State *)
+-|  let%sub player, player_inject = Player.computation ~rows ~cols in
++|  let%sub player1, player1_inject = Player.computation ~rows ~cols in
++|  let%sub player2, player2_inject = Player.computation ~rows ~cols in
+-|  let%sub invalid_pos =
+-|    let%arr player = player in
+-|    Snake.set_of_t player.snake
++|  let%sub invalid_pos =
++|    let%arr player1 = player1
++|    and player2 = player2 in
++|    Set.union (Snake.set_of_t player1.snake) (Snake.set_of_t player2.snake)
+    in
+    let%sub apple, apple_inject = Apple.computation ~rows ~cols ~invalid_pos in
+    (* Tick logic *)
+    let%sub () =
+      let%sub clock_effect =
+-|      let%arr player_inject = player_inject
++|      let%arr player1_inject = player1_inject
++|      and player2_inject = player2_inject
+        and apple = apple
+        and apple_inject = apple_inject in
+-|      player_inject (Move (apple, apple_inject))
++|      Effect.Many
++|        [ player1_inject (Move (apple, apple_inject))
++|        ; player2_inject (Move (apple, apple_inject))
++|        ]
+      in
+      Bonsai.Clock.every [%here] (Time_ns.Span.of_sec 0.25) clock_effect
+    in
+    (* Reset logic *)
+    let%sub reset_action =
+-|    let%arr player_inject = player_inject
++|    let%arr player1_inject = player1_inject
++|    and player2_inject = player2_inject
+      and apple_inject = apple_inject in
+-|    Effect.Many [ player_inject Restart; apple_inject Spawn ]
++|    Effect.Many [ player1_inject Restart; player2_inject Restart; apple_inject Spawn ]
+    in
+    (* View component *)
+-|  let%sub board = Board.component ~rows ~cols player apple in
++|  let%sub board = Board.component ~rows ~cols player1 player2 apple in
+    let%arr board = board
+-|  and player_inject = player_inject
++|  and player1_inject = player1_inject
++|  and player2_inject = player2_inject
+    and reset_action = reset_action in
+    let on_keydown evt =
+      match get_keydown_key evt with
+-|    | "KeyW" -> player_inject (Change_direction Up)
++|    | "KeyW" -> player1_inject (Change_direction Up)
+-|    | "KeyS" -> player_inject (Change_direction Down)
++|    | "KeyS" -> player1_inject (Change_direction Down)
+-|    | "KeyA" -> player_inject (Change_direction Left)
++|    | "KeyA" -> player1_inject (Change_direction Left)
+-|    | "KeyD" -> player_inject (Change_direction Right)
++|    | "KeyD" -> player1_inject (Change_direction Right)
++|    | "ArrowUp" -> player2_inject (Change_direction Up)
++|    | "ArrowDown" -> player2_inject (Change_direction Down)
++|    | "ArrowLeft" -> player2_inject (Change_direction Left)
++|    | "ArrowRight" -> player2_inject (Change_direction Right)
+      | _ -> Effect.Ignore
+    in
+    Vdom.(
+      Node.div
+        ~attr:
+          (Attr.many
+             [ Attr.on_keydown on_keydown
+             ; Attr.on_click (fun _ -> reset_action)
+             ; Attr.class_ Style.app
+             ])
+        [ board ])
+  ;;
+
+==== /src/board.ml ====
+-5,118 +5,136
+  [%css.raw
+  {|
+  .grid {
+    width: 600px;
+    display: grid;
+    grid-template-rows: repeat(var(--grid-rows), 1fr);
+    grid-template-columns: repeat(var(--grid-cols), 1fr);
+  }
+  
+  .grid_cell {
+    border: 2px solid gray;
+    /* Hack to make the cells square */
+    padding-bottom: 100%;
+    height: 0;
+  }
+  
+-|.snake_cell {
++|.snake1_cell {
+    background-color: green;
++|}
++|
++|.snake2_cell {
++|  background-color: blue;
+  }
+  
+  .apple_cell {
+    background-color: red;
+  }
+  
+  .empty_cell {
+    background-color: white;
+  }
+  |}]
+  
+  module Cell = struct
+    type t =
+-|    | Snake
++|    | Snake1
++|    | Snake2
+      | Apple
+      | Empty
+  
+-|  let t_of_pos ~snake ~apple =
+-|    let snake_cells = Snake.set_of_t snake in
++|  let t_of_pos ~snake1 ~snake2 ~apple =
++|    let snake1_cells = Snake.set_of_t snake1 in
++|    let snake2_cells = Snake.set_of_t snake2 in
+-|    let apple_cells = Apple.set_of_t apple in
+-|    fun pos ->
+-|      if Set.mem snake_cells pos
+-|      then Snake
++|    let apple_cells = Apple.set_of_t apple in
++|    fun pos ->
++|      if Set.mem snake1_cells pos
++|      then Snake1
++|      else if Set.mem snake2_cells pos
++|      then Snake2
+        else if Set.mem apple_cells pos
+        then Apple
+        else Empty
+    ;;
+  
+    let classname_of_t = function
+-|    | Snake -> Style.snake_cell
++|    | Snake1 -> Style.snake1_cell
++|    | Snake2 -> Style.snake2_cell
+      | Apple -> Style.apple_cell
+      | Empty -> Style.empty_cell
+    ;;
+  end
+  
+-|let view_board rows cols snake apple =
++|let view_board rows cols snake1 snake2 apple =
+-|  let cell_t_of_pos = Cell.t_of_pos ~snake ~apple in
++|  let cell_t_of_pos = Cell.t_of_pos ~snake1 ~snake2 ~apple in
+    let cells =
+      List.init rows ~f:(fun row ->
+        List.init cols ~f:(fun col ->
+          let pos = { Position.row; col } in
+          let class_ = Cell.classname_of_t (cell_t_of_pos pos) in
+          Vdom.(Node.div ~attr:(Attr.classes [ Style.grid_cell; class_ ]) [])))
+      |> List.concat
+    in
+    Vdom.(Node.div ~attr:(Attr.class_ Style.grid) cells)
+  ;;
+  
+  let view_instructions = Vdom.(Node.p [ Node.text "Click anywhere to start or reset." ])
+  
+-|let view_score_status score status =
++|let view_score_status ~label score status =
+    let view_status =
+      match status with
+      | Player_status.Playing -> Vdom.Node.none
+      | Inactive reason ->
+        let message_text =
+          match reason with
+          | Not_started -> "Click to start!"
+          | Out_of_bounds -> "Game over... Out of bounds!"
+          | Ate_self -> "Game over... Ate self!"
+        in
+        Vdom.(Node.p [ Node.text message_text ])
+    in
+-|  Vdom.(Node.div [ Node.p [ Node.textf "Score: %d" score ]; view_status ])
++|  Vdom.(
++|    Node.div
++|      [ Node.h3 [ Node.text label ]
++|      ; Node.p [ Node.textf "Score: %d" score ]
++|      ; view_status
++|      ])
+  ;;
+  
+  let set_style_property key value =
+    let open Js_of_ocaml in
+    let priority = Js.undefined in
+    let res =
+      Dom_html.document##.documentElement##.style##setProperty
+        (Js.string key)
+        (Js.string value)
+        priority
+    in
+    ignore res
+  ;;
+  
+-|let component ~rows ~cols player apple =
++|let component ~rows ~cols player1 player2 apple =
+    let open Bonsai.Let_syntax in
+    (* TODO: use `Attr.css_var` instead. *)
+    let on_activate =
+      Ui_effect.of_sync_fun
+        (fun () ->
+          set_style_property "--grid-rows" (Int.to_string rows);
+          set_style_property "--grid-cols" (Int.to_string cols))
+        ()
+      |> Value.return
+    in
+    let%sub () = Bonsai.Edge.lifecycle ~on_activate () in
+-|  let%arr { Player.score; snake; status } = player
++|  let%arr { Player.score = score1; snake = snake1; status = status1 } = player1
++|  and { Player.score = score2; snake = snake2; status = status2 } = player2
+    and apple = apple in
+    Vdom.(
+      Node.div
+        [ Node.h1 [ Node.text "Snake Game" ]
+        ; view_instructions
+-|      ; view_score_status score status
++|      ; Node.div
++|          [ view_score_status ~label:"Player 1" score1 status1
++|          ; view_score_status ~label:"Player 2" score2 status2
++|          ]
+-|      ; view_board rows cols snake apple
++|      ; view_board rows cols snake1 snake2 apple
+        ])
+  ;;
+
+==== /src/board.mli ====
+-1,9 +1,10
+  open! Core
+  open! Bonsai_web
+  
+  val component
+    :  rows:int
+    -> cols:int
+    -> Player.t Value.t
++|  -> Player.t Value.t
+    -> Apple.t Value.t
+    -> Vdom.Node.t Computation.t
+
+==== /src/dune ====
+-1,14 +1,15
+  (executables
+   (names main)
+   (modes js)
+   (libraries
++|  js_of_ocaml
+    async_kernel
+    async_js
+    core_kernel.composition_infix
+    core
+    bonsai
+    bonsai.web
+    virtual_dom
+    virtual_dom.input_widgets)
+   (preprocess
+    (pps js_of_ocaml-ppx ppx_jane ppx_css)))
+
+==== /src/snake.ml ====
+-1,17 +1,18
+  open! Core
++|open! Bonsai_web
+  
+  type t =
+    { pos : Position.t Deque.t
+    ; left_to_grow : int
+    }
+  [@@deriving sexp]
+  
+  let equal a b =
+    List.equal Position.equal (Deque.to_list a.pos) (Deque.to_list b.pos)
+    && Int.equal a.left_to_grow b.left_to_grow
+  ;;
+  
+  let set_of_t x =
+    let module Pos_set = Set.Make (Position) in
+    x.pos |> Deque.to_list |> Pos_set.of_list
+  ;;
+
+==== /src/snake.mli ====
+-1,11 +1,12
+  open! Core
++|open! Bonsai_web
+  
+  type t [@@deriving sexp, equal]
+  
+  val set_of_t : t -> Set.Make(Position).t
+  val head : t -> Position.t
+  val is_eatting_self : t -> bool
+  val is_out_of_bounds : rows:int -> cols:int -> t -> bool
+  val spawn_random : rows:int -> cols:int -> t
+  val move : t -> Direction.t -> t
+  val grow_eventually : by:int -> t -> t

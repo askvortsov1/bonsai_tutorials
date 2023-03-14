@@ -1,0 +1,324 @@
+==== /src/app.ml ====
+-1,19 +1,72
+  open! Core
+  open! Bonsai_web
+  
++|module Style =
++|[%css.raw
++|{|
++|html,body{min-height:100%; height:100%;}
++|
++|.app {
++|  width: 100%;
++|  height: 100%;
++|}
++||}]
++|
+  let rows = 20
+  let cols = 20
+  
+-|let component =
+-|  let snake = Snake.spawn_random ~rows ~cols in
+-|  let apple = Apple.spawn_random ~rows ~cols ~invalid_pos:(Snake.set_of_t snake) in
+-|  let score = 100 in
+-|  let player_status = Player_status.Playing in
+-|  Board.component
+-|    ~rows
+-|    ~cols
+-|    (Value.return snake)
+-|    (Value.return score)
+-|    (Value.return player_status)
+-|    (Value.return apple)
++|let get_keydown_key evt =
++|  evt##.code
++|  |> Js_of_ocaml.Js.Optdef.to_option
++|  |> Option.value_exn
++|  |> Js_of_ocaml.Js.to_string
++|;;
++|
++|let component =
++|  let open Bonsai.Let_syntax in
++|  (* State *)
++|  let%sub player, player_inject = Player.computation ~rows ~cols in
++|  let%sub invalid_pos =
++|    let%arr player = player in
++|    Snake.set_of_t player.snake
++|  in
++|  let%sub apple, apple_inject = Apple.computation ~rows ~cols ~invalid_pos in
++|  (* Tick logic *)
++|  let%sub () =
++|    let%sub clock_effect =
++|      let%arr player_inject = player_inject
++|      and apple = apple
++|      and apple_inject = apple_inject in
++|      player_inject (Move (apple, apple_inject))
++|    in
++|    Bonsai.Clock.every [%here] (Time_ns.Span.of_sec 0.25) clock_effect
++|  in
++|  (* Reset logic *)
++|  let%sub reset_action =
++|    let%arr player_inject = player_inject
++|    and apple_inject = apple_inject in
++|    Effect.Many [ player_inject Restart; apple_inject Spawn ]
++|  in
++|  (* View component *)
++|  let%sub board = Board.component ~rows ~cols player apple in
++|  let%arr board = board
++|  and player_inject = player_inject
++|  and reset_action = reset_action in
++|  let on_keydown evt =
++|    match get_keydown_key evt with
++|    | "KeyW" -> player_inject (Change_direction Up)
++|    | "KeyS" -> player_inject (Change_direction Down)
++|    | "KeyA" -> player_inject (Change_direction Left)
++|    | "KeyD" -> player_inject (Change_direction Right)
++|    | _ -> Effect.Ignore
++|  in
++|  Vdom.(
++|    Node.div
++|      ~attr:
++|        (Attr.many
++|           [ Attr.on_keydown on_keydown
++|           ; Attr.on_click (fun _ -> reset_action)
++|           ; Attr.class_ Style.app
++|           ])
++|      [ board ])
+  ;;
+
+==== /src/apple.ml ====
+-1,15 +1,43
+  open! Core
+  open! Bonsai_web
+  
+  type t = Position.t option [@@deriving sexp, equal]
+  
+  let set_of_t t =
+    let module Pos_set = Set.Make (Position) in
+    match t with
+    | Some pos -> Pos_set.singleton pos
+    | None -> Pos_set.empty
+  ;;
+  
+  let spawn_random ~rows ~cols ~invalid_pos =
+    Position.random_pos ~rows ~cols ~invalid_pos:(Set.to_list invalid_pos)
+  ;;
++|
++|module Model = struct
++|  type t = Position.t option [@@deriving sexp, equal]
++|end
++|
++|module Action = struct
++|  type t =
++|    | Spawn
++|    | Eatten
++|  [@@deriving sexp]
++|end
++|
++|let apply_action ~rows ~cols ~inject:_ ~schedule_event:_ invalid_pos model action =
++|  let apple_set = set_of_t model in
++|  let full_invalid_pos = Set.union invalid_pos apple_set in
++|  match action with
++|  | Action.Eatten | Spawn -> spawn_random ~rows ~cols ~invalid_pos:full_invalid_pos
++|;;
++|
++|let computation ~rows ~cols ~invalid_pos =
++|  Bonsai.state_machine1
++|    [%here]
++|    (module Model)
++|    (module Action)
++|    ~default_model:None
++|    ~apply_action:(apply_action ~rows ~cols)
++|    invalid_pos
++|;;
+
+==== /src/apple.mli ====
+-1,7 +1,20
+  open! Core
+  open! Bonsai_web
+  
+  type t = Position.t option [@@deriving sexp]
+  
+  val set_of_t : t -> Set.Make(Position).t
+  val spawn_random : rows:int -> cols:int -> invalid_pos:Set.Make(Position).t -> t
++|
++|module Action : sig
++|  type t =
++|    | Spawn
++|    | Eatten
++|  [@@deriving sexp]
++|end
++|
++|val computation
++|  :  rows:int
++|  -> cols:int
++|  -> invalid_pos:Set.Make(Position).t Value.t
++|  -> (t * (Action.t -> unit Effect.t)) Computation.t
+
+==== /src/board.ml ====
+-85,40 +85,38
+    in
+    Vdom.(Node.div [ Node.p [ Node.textf "Score: %d" score ]; view_status ])
+  ;;
+  
+  let set_style_property key value =
+    let open Js_of_ocaml in
+    let priority = Js.undefined in
+    let res =
+      Dom_html.document##.documentElement##.style##setProperty
+        (Js.string key)
+        (Js.string value)
+        priority
+    in
+    ignore res
+  ;;
+  
+-|let component ~rows ~cols snake score player_status apple =
++|let component ~rows ~cols player apple =
+    let open Bonsai.Let_syntax in
+    (* TODO: use `Attr.css_var` instead. *)
+    let on_activate =
+      Ui_effect.of_sync_fun
+        (fun () ->
+          set_style_property "--grid-rows" (Int.to_string rows);
+          set_style_property "--grid-cols" (Int.to_string cols))
+        ()
+      |> Value.return
+    in
+    let%sub () = Bonsai.Edge.lifecycle ~on_activate () in
+-|  let%arr score = score
+-|  and snake = snake
+-|  and status = player_status
++|  let%arr { Player.score; snake; status } = player
+    and apple = apple in
+    Vdom.(
+      Node.div
+        [ Node.h1 [ Node.text "Snake Game" ]
+        ; view_instructions
+        ; view_score_status score status
+        ; view_board rows cols snake apple
+        ])
+  ;;
+
+==== /src/board.mli ====
+-1,11 +1,9
+  open! Core
+  open! Bonsai_web
+  
+  val component
+    :  rows:int
+    -> cols:int
+-|  -> Snake.t Value.t
+-|  -> int Value.t
+-|  -> Player_status.t Value.t
++|  -> Player.t Value.t
+    -> Apple.t Value.t
+    -> Vdom.Node.t Computation.t
+
+==== /src/player.ml ====
+-1,0 +1,85
++|open! Core
++|open! Bonsai
++|
++|type t =
++|  { score : int
++|  ; snake : Snake.t
++|  ; status : Player_status.t
++|  }
++|[@@deriving sexp, fields]
++|
++|module Model = struct
++|  type t =
++|    { score : int
++|    ; snake : Snake.t
++|    ; direction : Direction.t
++|    ; status : Player_status.t
++|    }
++|  [@@deriving sexp, equal]
++|end
++|
++|module Action = struct
++|  type t =
++|    | Restart
++|    | Move of (Apple.t * (Apple.Action.t -> unit Effect.t))
++|    | Change_direction of Direction.t
++|  [@@deriving sexp]
++|end
++|
++|let ate_apple_score = 1
++|
++|let default_model ~rows ~cols =
++|  (* Spawn in left half, going right*)
++|  let snake = Snake.spawn_random ~rows ~cols:(cols / 2) in
++|  { Model.score = 0; snake; direction = Right; status = Inactive Not_started }
++|;;
++|
++|let apply_action
++|  ~rows
++|  ~cols
++|  ~inject:_
++|  ~schedule_event
++|  (model : Model.t)
++|  (action : Action.t)
++|  =
++|  match action, model.status with
++|  | Restart, _ ->
++|    let default = default_model ~rows ~cols in
++|    { default with status = Playing }
++|  | Move (apple, apple_inject), Playing ->
++|    let snake = Snake.move model.snake model.direction in
++|    let (status : Player_status.t) =
++|      if Snake.is_eatting_self snake
++|      then Inactive Ate_self
++|      else if Snake.is_out_of_bounds ~rows ~cols snake
++|      then Inactive Out_of_bounds
++|      else Playing
++|    in
++|    let ate_apple = Option.mem apple (Snake.head snake) ~equal:Position.equal in
++|    if ate_apple
++|    then (
++|      let () = schedule_event (apple_inject Apple.Action.Eatten) in
++|      { Model.direction = model.direction
++|      ; snake = Snake.grow_eventually ~by:1 snake
++|      ; score = model.score + ate_apple_score
++|      ; status
++|      })
++|    else { Model.direction = model.direction; snake; score = model.score; status }
++|  | Change_direction dir, Playing -> { model with direction = dir }
++|  | Move _, Inactive _ | Change_direction _, Inactive _ -> model
++|;;
++|
++|let computation ~rows ~cols =
++|  let open Bonsai.Let_syntax in
++|  let%sub model, inject =
++|    Bonsai.state_machine0
++|      [%here]
++|      (module Model)
++|      (module Action)
++|      ~default_model:(default_model ~rows ~cols)
++|      ~apply_action:(apply_action ~rows ~cols)
++|  in
++|  let%arr model = model
++|  and inject = inject in
++|  { snake = model.snake; score = model.score; status = model.status }, inject
++|;;
+
+==== /src/player.mli ====
+-1,0 +1,18
++|open! Core
++|open! Bonsai
++|
++|type t =
++|  { score : int
++|  ; snake : Snake.t
++|  ; status : Player_status.t
++|  }
++|[@@deriving sexp, fields]
++|
++|module Action : sig
++|  type t =
++|    | Restart
++|    | Move of (Apple.t * (Apple.Action.t -> unit Effect.t))
++|    | Change_direction of Direction.t
++|end
++|
++|val computation : rows:int -> cols:int -> (t * (Action.t -> unit Effect.t)) Computation.t

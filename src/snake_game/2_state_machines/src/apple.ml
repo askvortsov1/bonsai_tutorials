@@ -10,6 +10,10 @@ let set_of_t t =
   | None -> Pos_set.empty
 ;;
 
+let spawn_random ~rows ~cols ~invalid_pos =
+  Position.random_pos ~rows ~cols ~invalid_pos:(Set.to_list invalid_pos)
+;;
+
 module Model = struct
   type t = Position.t option [@@deriving sexp, equal]
 end
@@ -25,8 +29,7 @@ let apply_action ~rows ~cols ~inject:_ ~schedule_event:_ invalid_pos model actio
   let apple_set = set_of_t model in
   let full_invalid_pos = Set.union invalid_pos apple_set in
   match action with
-  | Action.Eatten | Spawn ->
-    Position.random_pos ~rows ~cols ~invalid_pos:(Set.to_list full_invalid_pos)
+  | Action.Eatten | Spawn -> spawn_random ~rows ~cols ~invalid_pos:full_invalid_pos
 ;;
 
 let computation ~rows ~cols ~invalid_pos =

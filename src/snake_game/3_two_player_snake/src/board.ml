@@ -18,8 +18,12 @@ module Style =
   height: 0;
 }
 
-.snake_cell {
+.snake1_cell {
   background-color: green;
+}
+
+.snake2_cell {
+  background-color: blue;
 }
 
 .apple_cell {
@@ -33,43 +37,35 @@ module Style =
 
 module Cell = struct
   type t =
-    | Snake
+    | Snake1
+    | Snake2
     | Apple
     | Empty
 
-  let t_of_pos ~snake ~apple =
-    let snake_cells = Snake.set_of_t snake in
+  let t_of_pos ~snake1 ~snake2 ~apple =
+    let snake1_cells = Snake.set_of_t snake1 in
+    let snake2_cells = Snake.set_of_t snake2 in
     let apple_cells = Apple.set_of_t apple in
     fun pos ->
-      if Set.mem snake_cells pos
-      then Snake
+      if Set.mem snake1_cells pos
+      then Snake1
+      else if Set.mem snake2_cells pos
+      then Snake2
       else if Set.mem apple_cells pos
       then Apple
       else Empty
   ;;
 
   let classname_of_t = function
-    | Snake -> Style.snake_cell
+    | Snake1 -> Style.snake1_cell
+    | Snake2 -> Style.snake2_cell
     | Apple -> Style.apple_cell
     | Empty -> Style.empty_cell
   ;;
 end
 
-let view_end_message status =
-  match status with
-  | Player_status.Playing -> Vdom.Node.none
-  | Inactive reason ->
-    let message_text =
-      match reason with
-      | Not_started -> "Click to start!"
-      | Out_of_bounds -> "Game over... Out of bounds!"
-      | Ate_self -> "Game over... Ate self!"
-    in
-    Vdom.(Node.p [ Node.text message_text ])
-;;
-
-let view_board rows cols snake apple =
-  let cell_t_of_pos = Cell.t_of_pos ~snake ~apple in
+let view_board rows cols snake1 snake2 apple =
+  let cell_t_of_pos = Cell.t_of_pos ~snake1 ~snake2 ~apple in
   let cells =
     List.init rows ~f:(fun row ->
       List.init cols ~f:(fun col ->
@@ -79,6 +75,29 @@ let view_board rows cols snake apple =
     |> List.concat
   in
   Vdom.(Node.div ~attr:(Attr.class_ Style.grid) cells)
+;;
+
+let view_instructions = Vdom.(Node.p [ Node.text "Click anywhere to start or reset." ])
+
+let view_score_status ~label score status =
+  let view_status =
+    match status with
+    | Player_status.Playing -> Vdom.Node.none
+    | Inactive reason ->
+      let message_text =
+        match reason with
+        | Not_started -> "Click to start!"
+        | Out_of_bounds -> "Game over... Out of bounds!"
+        | Ate_self -> "Game over... Ate self!"
+      in
+      Vdom.(Node.p [ Node.text message_text ])
+  in
+  Vdom.(
+    Node.div
+      [ Node.h3 [ Node.text label ]
+      ; Node.p [ Node.textf "Score: %d" score ]
+      ; view_status
+      ])
 ;;
 
 let set_style_property key value =
@@ -93,7 +112,7 @@ let set_style_property key value =
   ignore res
 ;;
 
-let component ~rows ~cols player apple =
+let component ~rows ~cols player1 player2 apple =
   let open Bonsai.Let_syntax in
   (* TODO: use `Attr.css_var` instead. *)
   let on_activate =
@@ -105,14 +124,17 @@ let component ~rows ~cols player apple =
     |> Value.return
   in
   let%sub () = Bonsai.Edge.lifecycle ~on_activate () in
-  let%arr { Player.score; snake; status } = player
+  let%arr { Player.score = score1; snake = snake1; status = status1 } = player1
+  and { Player.score = score2; snake = snake2; status = status2 } = player2
   and apple = apple in
   Vdom.(
     Node.div
       [ Node.h1 [ Node.text "Snake Game" ]
-      ; Node.p [ Node.text "Click anywhere to restart." ]
-      ; Node.p [ Node.textf "Score: %d" score ]
-      ; view_end_message status
-      ; view_board rows cols snake apple
+      ; view_instructions
+      ; Node.div
+          [ view_score_status ~label:"Player 1" score1 status1
+          ; view_score_status ~label:"Player 2" score2 status2
+          ]
+      ; view_board rows cols snake1 snake2 apple
       ])
 ;;

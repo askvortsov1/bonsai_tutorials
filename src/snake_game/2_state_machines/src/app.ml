@@ -15,7 +15,7 @@ html,body{min-height:100%; height:100%;}
 let rows = 20
 let cols = 20
 
-let get_keypress_key evt =
+let get_keydown_key evt =
   evt##.code
   |> Js_of_ocaml.Js.Optdef.to_option
   |> Option.value_exn
@@ -52,8 +52,8 @@ let component =
   let%arr board = board
   and player_inject = player_inject
   and reset_action = reset_action in
-  let on_keypress evt =
-    match get_keypress_key evt with
+  let on_keydown evt =
+    match get_keydown_key evt with
     | "KeyW" -> player_inject (Change_direction Up)
     | "KeyS" -> player_inject (Change_direction Down)
     | "KeyA" -> player_inject (Change_direction Left)
@@ -64,7 +64,7 @@ let component =
     Node.div
       ~attr:
         (Attr.many
-           [ Attr.on_keypress on_keypress
+           [ Attr.on_keydown on_keydown
            ; Attr.on_click (fun _ -> reset_action)
            ; Attr.class_ Style.app
            ])
