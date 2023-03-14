@@ -25,8 +25,8 @@ let get_keydown_key evt =
 let component =
   let open Bonsai.Let_syntax in
   (* State *)
-  let%sub player1, player1_inject = Player.computation ~rows ~cols in
-  let%sub player2, player2_inject = Player.computation ~rows ~cols in
+  let%sub player1, player1_inject = Player.computation ~rows ~cols ~color:"green" in
+  let%sub player2, player2_inject = Player.computation ~rows ~cols ~color:"blue" in
   let%sub invalid_pos =
     let%arr player1 = player1
     and player2 = player2 in

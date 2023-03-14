@@ -18,3 +18,5 @@ val computation
   -> cols:int
   -> invalid_pos:Set.Make(Position).t Value.t
   -> (t * (Action.t -> unit Effect.t)) Computation.t
+
+val cell_background : t ->  Position.t -> string option
