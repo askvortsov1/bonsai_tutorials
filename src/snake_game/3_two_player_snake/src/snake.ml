@@ -1,5 +1,4 @@
 open! Core
-open! Bonsai_web
 
 type t =
   { pos : Position.t Deque.t
