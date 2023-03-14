@@ -14,6 +14,11 @@ let spawn_random ~rows ~cols ~invalid_pos =
   Position.random_pos ~rows ~cols ~invalid_pos:(Set.to_list invalid_pos)
 ;;
 
+let cell_background a pos =
+  if Option.mem a pos ~equal:Position.equal then Some "red" else None
+;;
+
+
 module Model = struct
   type t = Position.t option [@@deriving sexp, equal]
 end

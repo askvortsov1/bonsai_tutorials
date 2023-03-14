@@ -28,15 +28,16 @@ end
 
 let ate_apple_score = 1
 
-let default_model ~rows ~cols =
+let default_model ~rows ~cols ~color =
   (* Spawn in left half, going right*)
-  let snake = Snake.spawn_random ~rows ~cols:(cols / 2) in
+  let snake = Snake.spawn_random ~rows ~cols:(cols / 2) ~color in
   { Model.score = 0; snake; direction = Right; status = Inactive Not_started }
 ;;
 
 let apply_action
   ~rows
   ~cols
+  ~color
   ~inject:_
   ~schedule_event
   (model : Model.t)
@@ -44,7 +45,7 @@ let apply_action
   =
   match action, model.status with
   | Restart, _ ->
-    let default = default_model ~rows ~cols in
+    let default = default_model ~rows ~cols ~color in
     { default with status = Playing }
   | Move (apple, apple_inject), Playing ->
     let snake = Snake.move model.snake model.direction in
@@ -69,15 +70,15 @@ let apply_action
   | Move _, Inactive _ | Change_direction _, Inactive _ -> model
 ;;
 
-let computation ~rows ~cols =
+let computation ~rows ~cols ~color =
   let open Bonsai.Let_syntax in
   let%sub model, inject =
     Bonsai.state_machine0
       [%here]
       (module Model)
       (module Action)
-      ~default_model:(default_model ~rows ~cols)
-      ~apply_action:(apply_action ~rows ~cols)
+      ~default_model:(default_model ~rows ~cols ~color)
+      ~apply_action:(apply_action ~rows ~cols ~color)
   in
   let%arr model = model
   and inject = inject in

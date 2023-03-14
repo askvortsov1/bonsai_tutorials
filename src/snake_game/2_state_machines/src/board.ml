@@ -17,52 +17,35 @@ module Style =
   padding-bottom: 100%;
   height: 0;
 }
-
-.snake_cell {
-  background-color: green;
-}
-
-.apple_cell {
-  background-color: red;
-}
-
-.empty_cell {
-  background-color: white;
-}
 |}]
 
-module Cell = struct
-  type t =
-    | Snake
-    | Apple
-    | Empty
-
-  let t_of_pos ~snake ~apple =
-    let snake_cells = Snake.set_of_t snake in
-    let apple_cells = Apple.set_of_t apple in
-    fun pos ->
-      if Set.mem snake_cells pos
-      then Snake
-      else if Set.mem apple_cells pos
-      then Apple
-      else Empty
-  ;;
-
-  let classname_of_t = function
-    | Snake -> Style.snake_cell
-    | Apple -> Style.apple_cell
-    | Empty -> Style.empty_cell
-  ;;
-end
+let background_str_of_pos ~snakes ~apples =
+  let drivers =
+    List.join
+      [ List.map snakes ~f:Snake.cell_background
+      ; List.map apples ~f:Apple.cell_background
+      ]
+  in
+  fun pos ->
+    match List.find_map drivers ~f:(fun driver -> driver pos) with
+    | Some x -> x
+    | None -> "white"
+;;
 
 let view_board rows cols snake apple =
-  let cell_t_of_pos = Cell.t_of_pos ~snake ~apple in
+  let background_fn =
+    background_str_of_pos ~snakes:[ snake ] ~apples:[ apple ]
+  in
   let cells =
     List.init rows ~f:(fun row ->
       List.init cols ~f:(fun col ->
         let pos = { Position.row; col } in
-        let class_ = Cell.classname_of_t (cell_t_of_pos pos) in
-        Vdom.(Node.div ~attr:(Attr.classes [ Style.grid_cell; class_ ]) [])))
+        let background_str = background_fn pos in
+        let css = Css_gen.create ~field:"background" ~value:background_str in
+        Vdom.(
+          Node.div
+            ~attr:(Attr.many [ Attr.style css; Attr.classes [ Style.grid_cell ] ])
+            [])))
     |> List.concat
   in
   Vdom.(Node.div ~attr:(Attr.class_ Style.grid) cells)
