@@ -19,7 +19,6 @@ module Style =
 }
 |}]
 
-
 let background_str_of_pos ~snakes ~apples =
   let drivers =
     List.join
@@ -33,12 +32,8 @@ let background_str_of_pos ~snakes ~apples =
     | None -> "white"
 ;;
 
-
-
 let view_board rows cols snake apple =
-  let background_fn =
-    background_str_of_pos ~snakes:[ snake ] ~apples:[ apple ]
-  in
+  let background_fn = background_str_of_pos ~snakes:[ snake ] ~apples:[ apple ] in
   let cells =
     List.init rows ~f:(fun row ->
       List.init cols ~f:(fun col ->

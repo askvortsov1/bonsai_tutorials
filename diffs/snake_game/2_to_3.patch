@@ -16,13 +16,13 @@
   let component =
     let open Bonsai.Let_syntax in
     (* State *)
--|  let%sub player, player_inject = Player.computation ~rows ~cols in
-+|  let%sub player1, player1_inject = Player.computation ~rows ~cols in
-+|  let%sub player2, player2_inject = Player.computation ~rows ~cols in
+-|  let%sub player, player_inject = Player.computation ~rows ~cols ~color:"green" in
++|  let%sub player1, player1_inject = Player.computation ~rows ~cols ~color:"green" in
 -|  let%sub invalid_pos =
++|  let%sub player2, player2_inject = Player.computation ~rows ~cols ~color:"blue" in
++|  let%sub invalid_pos =
 -|    let%arr player = player in
 -|    Snake.set_of_t player.snake
-+|  let%sub invalid_pos =
 +|    let%arr player1 = player1
 +|    and player2 = player2 in
 +|    Set.union (Snake.set_of_t player1.snake) (Snake.set_of_t player2.snake)
@@ -89,88 +89,39 @@
   ;;
 
 ==== /src/board.ml ====
--5,118 +5,136
-  [%css.raw
-  {|
-  .grid {
-    width: 600px;
-    display: grid;
-    grid-template-rows: repeat(var(--grid-rows), 1fr);
-    grid-template-columns: repeat(var(--grid-cols), 1fr);
-  }
-  
-  .grid_cell {
-    border: 2px solid gray;
-    /* Hack to make the cells square */
-    padding-bottom: 100%;
-    height: 0;
-  }
-  
--|.snake_cell {
-+|.snake1_cell {
-    background-color: green;
-+|}
-+|
-+|.snake2_cell {
-+|  background-color: blue;
-  }
-  
-  .apple_cell {
-    background-color: red;
-  }
-  
-  .empty_cell {
-    background-color: white;
+-19,85 +19,96
   }
   |}]
   
-  module Cell = struct
-    type t =
--|    | Snake
-+|    | Snake1
-+|    | Snake2
-      | Apple
-      | Empty
-  
--|  let t_of_pos ~snake ~apple =
--|    let snake_cells = Snake.set_of_t snake in
-+|  let t_of_pos ~snake1 ~snake2 ~apple =
-+|    let snake1_cells = Snake.set_of_t snake1 in
-+|    let snake2_cells = Snake.set_of_t snake2 in
--|    let apple_cells = Apple.set_of_t apple in
--|    fun pos ->
--|      if Set.mem snake_cells pos
--|      then Snake
-+|    let apple_cells = Apple.set_of_t apple in
-+|    fun pos ->
-+|      if Set.mem snake1_cells pos
-+|      then Snake1
-+|      else if Set.mem snake2_cells pos
-+|      then Snake2
-        else if Set.mem apple_cells pos
-        then Apple
-        else Empty
-    ;;
-  
-    let classname_of_t = function
--|    | Snake -> Style.snake_cell
-+|    | Snake1 -> Style.snake1_cell
-+|    | Snake2 -> Style.snake2_cell
-      | Apple -> Style.apple_cell
-      | Empty -> Style.empty_cell
-    ;;
-  end
+  let background_str_of_pos ~snakes ~apples =
+    let drivers =
+      List.join
+        [ List.map snakes ~f:Snake.cell_background
+        ; List.map apples ~f:Apple.cell_background
+        ]
+    in
+    fun pos ->
+      match List.find_map drivers ~f:(fun driver -> driver pos) with
+      | Some x -> x
+      | None -> "white"
+  ;;
   
 -|let view_board rows cols snake apple =
 +|let view_board rows cols snake1 snake2 apple =
--|  let cell_t_of_pos = Cell.t_of_pos ~snake ~apple in
-+|  let cell_t_of_pos = Cell.t_of_pos ~snake1 ~snake2 ~apple in
+-|  let background_fn = background_str_of_pos ~snakes:[ snake ] ~apples:[ apple ] in
++|  let background_fn =
++|    background_str_of_pos ~snakes:[ snake1; snake2 ] ~apples:[ apple ]
++|  in
     let cells =
       List.init rows ~f:(fun row ->
         List.init cols ~f:(fun col ->
           let pos = { Position.row; col } in
-          let class_ = Cell.classname_of_t (cell_t_of_pos pos) in
-          Vdom.(Node.div ~attr:(Attr.classes [ Style.grid_cell; class_ ]) [])))
+          let background_str = background_fn pos in
+          let css = Css_gen.create ~field:"background" ~value:background_str in
+          Vdom.(
+            Node.div
+              ~attr:(Attr.many [ Attr.style css; Attr.classes [ Style.grid_cell ] ])
+              [])))
       |> List.concat
     in
     Vdom.(Node.div ~attr:(Attr.class_ Style.grid) cells)
@@ -283,6 +234,7 @@
   type t =
     { pos : Position.t Deque.t
     ; left_to_grow : int
+    ; color : string
     }
   [@@deriving sexp]
   
@@ -294,10 +246,9 @@
   let set_of_t x =
     let module Pos_set = Set.Make (Position) in
     x.pos |> Deque.to_list |> Pos_set.of_list
-  ;;
 
 ==== /src/snake.mli ====
--1,11 +1,12
+-1,12 +1,13
   open! Core
 +|open! Bonsai_web
   
@@ -307,6 +258,7 @@
   val head : t -> Position.t
   val is_eatting_self : t -> bool
   val is_out_of_bounds : rows:int -> cols:int -> t -> bool
-  val spawn_random : rows:int -> cols:int -> t
+  val spawn_random : rows:int -> cols:int -> color:string -> t
   val move : t -> Direction.t -> t
   val grow_eventually : by:int -> t -> t
+  val cell_background : t -> Position.t -> string option

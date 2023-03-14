@@ -22,7 +22,7 @@ let head s = Deque.peek_front_exn s.pos
 let spawn_random ~rows ~cols ~color =
   let head = Position.random_pos ~rows ~cols ~invalid_pos:[] in
   let head_exn = Option.value_exn head in
-  { pos = Deque.of_array [| head_exn |]; left_to_grow = 0 ; color}
+  { pos = Deque.of_array [| head_exn |]; left_to_grow = 0; color }
 ;;
 
 let move s dir =
@@ -46,6 +46,7 @@ let is_eatting_self s =
   | head :: tail -> Set.mem (Pos_set.of_list tail) head
   | [] -> false (* This should never happen. *)
 ;;
+
 let cell_background s =
   let set = set_of_t s in
   fun pos -> if Set.mem set pos then Some s.color else None

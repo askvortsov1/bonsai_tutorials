@@ -15,4 +15,8 @@ module Action : sig
     | Change_direction of Direction.t
 end
 
-val computation : rows:int -> cols:int -> color:string -> (t * (Action.t -> unit Effect.t)) Computation.t
+val computation
+  :  rows:int
+  -> cols:int
+  -> color:string
+  -> (t * (Action.t -> unit Effect.t)) Computation.t

@@ -8,4 +8,6 @@ type t =
   | Left
 [@@deriving sexp, equal]
 
+(** [next_position t pos] returns the next position after taking a step in
+    [t] from [pos] *)
 val next_position : t -> Position.t -> Position.t

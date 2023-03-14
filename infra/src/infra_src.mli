@@ -21,7 +21,7 @@ val save_diffs
 
 module Private : sig
   (** [get_chapters tutorials_dir src_dir project] looks for all tutorial chapter
-      files ({number}_{name}.md) in `tutorials_dir/project`, and matches them up
+      files ([number]_[name].md) in `tutorials_dir/project`, and matches them up
       with corresponding source code in `src_dir/project`.
 
       Exposed for testing, since this and the `mem_fs` contents encapsulate all

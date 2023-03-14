@@ -8,7 +8,7 @@
 +|let cols = 20
 +|
 +|let component =
-+|  let snake = Snake.spawn_random ~rows ~cols in
++|  let snake = Snake.spawn_random ~rows ~cols ~color:"green" in
 +|  let apple = Apple.spawn_random ~rows ~cols ~invalid_pos:(Snake.set_of_t snake) in
 +|  let score = 100 in
 +|  let player_status = Player_status.Playing in
@@ -22,7 +22,7 @@
 +|;;
 
 ==== /src/apple.ml ====
--1,0 +1,15
+-1,0 +1,19
 +|open! Core
 +|open! Bonsai_web
 +|
@@ -38,19 +38,33 @@
 +|let spawn_random ~rows ~cols ~invalid_pos =
 +|  Position.random_pos ~rows ~cols ~invalid_pos:(Set.to_list invalid_pos)
 +|;;
++|
++|let cell_background a pos =
++|  if Option.mem a pos ~equal:Position.equal then Some "red" else None
++|;;
 
 ==== /src/apple.mli ====
--1,0 +1,7
+-1,0 +1,17
 +|open! Core
 +|open! Bonsai_web
 +|
++|(** A [t] represents an apple which may or may not be placed somewhere
++|    on the grid. *)
 +|type t = Position.t option [@@deriving sexp]
 +|
++|(** [set_of_t t] returns a set of positions occupied by the apple. *)
 +|val set_of_t : t -> Set.Make(Position).t
++|
++|(** [spawn_random ~rows ~cols ~invalid_pos] creates an apple placed randomly
++|   on a rows*cols grid; excluding cells in ~invalid_pos. *)
 +|val spawn_random : rows:int -> cols:int -> invalid_pos:Set.Make(Position).t -> t
++|
++|(** [cell_background t pos] computes the background of a cell at [pos], if
++|    that cell is occupied by t. Otherwise, it returns [None] *)
++|val cell_background : t -> Position.t -> string option
 
 ==== /src/board.ml ====
--1,0 +1,124
+-1,0 +1,105
 +|open! Core
 +|open! Bonsai_web
 +|
@@ -70,52 +84,33 @@
 +|  padding-bottom: 100%;
 +|  height: 0;
 +|}
-+|
-+|.snake_cell {
-+|  background-color: green;
-+|}
-+|
-+|.apple_cell {
-+|  background-color: red;
-+|}
-+|
-+|.empty_cell {
-+|  background-color: white;
-+|}
 +||}]
 +|
-+|module Cell = struct
-+|  type t =
-+|    | Snake
-+|    | Apple
-+|    | Empty
-+|
-+|  let t_of_pos ~snake ~apple =
-+|    let snake_cells = Snake.set_of_t snake in
-+|    let apple_cells = Apple.set_of_t apple in
-+|    fun pos ->
-+|      if Set.mem snake_cells pos
-+|      then Snake
-+|      else if Set.mem apple_cells pos
-+|      then Apple
-+|      else Empty
-+|  ;;
-+|
-+|  let classname_of_t = function
-+|    | Snake -> Style.snake_cell
-+|    | Apple -> Style.apple_cell
-+|    | Empty -> Style.empty_cell
-+|  ;;
-+|end
++|let background_str_of_pos ~snakes ~apples =
++|  let drivers =
++|    List.join
++|      [ List.map snakes ~f:Snake.cell_background
++|      ; List.map apples ~f:Apple.cell_background
++|      ]
++|  in
++|  fun pos ->
++|    match List.find_map drivers ~f:(fun driver -> driver pos) with
++|    | Some x -> x
++|    | None -> "white"
++|;;
 +|
 +|let view_board rows cols snake apple =
-+|  let cell_t_of_pos = Cell.t_of_pos ~snake ~apple in
++|  let background_fn = background_str_of_pos ~snakes:[ snake ] ~apples:[ apple ] in
 +|  let cells =
 +|    List.init rows ~f:(fun row ->
 +|      List.init cols ~f:(fun col ->
 +|        let pos = { Position.row; col } in
-+|        let class_ = Cell.classname_of_t (cell_t_of_pos pos) in
-+|        Vdom.(Node.div ~attr:(Attr.classes [ Style.grid_cell; class_ ]) [])))
++|        let background_str = background_fn pos in
++|        let css = Css_gen.create ~field:"background" ~value:background_str in
++|        Vdom.(
++|          Node.div
++|            ~attr:(Attr.many [ Attr.style css; Attr.classes [ Style.grid_cell ] ])
++|            [])))
 +|    |> List.concat
 +|  in
 +|  Vdom.(Node.div ~attr:(Attr.class_ Style.grid) cells)
@@ -210,7 +205,7 @@
 +|;;
 
 ==== /src/direction.mli ====
--1,0 +1,11
+-1,0 +1,13
 +|open! Core
 +|
 +|(** A [t] represents a direction on the playing board. *)
@@ -221,6 +216,8 @@
 +|  | Left
 +|[@@deriving sexp, equal]
 +|
++|(** [next_position t pos] returns the next position after taking a step in
++|    [t] from [pos] *)
 +|val next_position : t -> Position.t -> Position.t
 
 ==== /src/player_status.ml ====
@@ -287,7 +284,7 @@
 +|;;
 
 ==== /src/position.mli ====
--1,0 +1,11
+-1,0 +1,13
 +|open! Core
 +|
 +|(** A [t] represents a square on the playing area, identified by its row and
@@ -298,15 +295,18 @@
 +|  }
 +|[@@deriving equal, compare, sexp]
 +|
++|(** [random_pos ~rows ~cols ~invalid_pos] returns a random [t] with
++|    [t.row < rows] and [t.col < cols]. *)
 +|val random_pos : rows:int -> cols:int -> invalid_pos:t list -> t option
 
 ==== /src/snake.ml ====
--1,0 +1,47
+-1,0 +1,53
 +|open! Core
 +|
 +|type t =
 +|  { pos : Position.t Deque.t
 +|  ; left_to_grow : int
++|  ; color : string
 +|  }
 +|[@@deriving sexp]
 +|
@@ -322,10 +322,10 @@
 +|
 +|let head s = Deque.peek_front_exn s.pos
 +|
-+|let spawn_random ~rows ~cols =
++|let spawn_random ~rows ~cols ~color =
 +|  let head = Position.random_pos ~rows ~cols ~invalid_pos:[] in
 +|  let head_exn = Option.value_exn head in
-+|  { pos = Deque.of_array [| head_exn |]; left_to_grow = 0 }
++|  { pos = Deque.of_array [| head_exn |]; left_to_grow = 0; color }
 +|;;
 +|
 +|let move s dir =
@@ -349,17 +349,47 @@
 +|  | head :: tail -> Set.mem (Pos_set.of_list tail) head
 +|  | [] -> false (* This should never happen. *)
 +|;;
++|
++|let cell_background s =
++|  let set = set_of_t s in
++|  fun pos -> if Set.mem set pos then Some s.color else None
++|;;
 
 ==== /src/snake.mli ====
--1,0 +1,11
+-1,0 +1,36
 +|open! Core
 +|
++|(** A [t] represents a snake, which keeps track of how much it
++|    has left to grow. *)
 +|type t [@@deriving sexp, equal]
 +|
++|(** [set_of_t t] returns a set of [Position.t]s occupied by the snake. *)
 +|val set_of_t : t -> Set.Make(Position).t
++|
++|(** [head t] returns the [Position.t] occupied by the head (first element) of the snake. *)
 +|val head : t -> Position.t
++|
++|(** [is_eatting_self t] returns true iff the snake's head is overlapping with any of
++|    the snake's body segments.  *)
 +|val is_eatting_self : t -> bool
++|
++|(** [is_out_of_bounds ~rows ~cols t] returns true iff the snake's head has gone
++|    outside of the [rows]*[cols] grid. *)
 +|val is_out_of_bounds : rows:int -> cols:int -> t -> bool
-+|val spawn_random : rows:int -> cols:int -> t
++|
++|(** [spawn_random ~rows ~cols ~invalid_pos] creates a length-1 snake
++|    placed randomly on the left half ([col < cols/2]) of a rows*cols grid.
++|    The provided color will be used in calls to [cell_background]. *)
++|val spawn_random : rows:int -> cols:int -> color:string -> t
++|
++|(** [move t dir] moves a snake 1 step in [dir]. It may or may not grow,
++|    depending on its internal state. *)
 +|val move : t -> Direction.t -> t
++|
++|(** [grow_eventually ~by] updates a snake's internal state to grow 1 cell
++|    for the next [by] times [move] is called. *)
 +|val grow_eventually : by:int -> t -> t
++|
++|(** [cell_background t pos] computes the background of a cell at [pos], if
++|    that cell is occupied by t. Otherwise, it returns [None] *)
++|val cell_background : t -> Position.t -> string option

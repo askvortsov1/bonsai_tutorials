@@ -17,4 +17,3 @@ let spawn_random ~rows ~cols ~invalid_pos =
 let cell_background a pos =
   if Option.mem a pos ~equal:Position.equal then Some "red" else None
 ;;
-

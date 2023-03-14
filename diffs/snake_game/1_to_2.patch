@@ -18,7 +18,7 @@
   let cols = 20
   
 -|let component =
--|  let snake = Snake.spawn_random ~rows ~cols in
+-|  let snake = Snake.spawn_random ~rows ~cols ~color:"green" in
 -|  let apple = Apple.spawn_random ~rows ~cols ~invalid_pos:(Snake.set_of_t snake) in
 -|  let score = 100 in
 -|  let player_status = Player_status.Playing in
@@ -39,7 +39,7 @@
 +|let component =
 +|  let open Bonsai.Let_syntax in
 +|  (* State *)
-+|  let%sub player, player_inject = Player.computation ~rows ~cols in
++|  let%sub player, player_inject = Player.computation ~rows ~cols ~color:"green" in
 +|  let%sub invalid_pos =
 +|    let%arr player = player in
 +|    Snake.set_of_t player.snake
@@ -86,10 +86,7 @@
   ;;
 
 ==== /src/apple.ml ====
--1,15 +1,43
-  open! Core
-  open! Bonsai_web
-  
+-4,16 +4,44
   type t = Position.t option [@@deriving sexp, equal]
   
   let set_of_t t =
@@ -101,6 +98,10 @@
   
   let spawn_random ~rows ~cols ~invalid_pos =
     Position.random_pos ~rows ~cols ~invalid_pos:(Set.to_list invalid_pos)
+  ;;
+  
+  let cell_background a pos =
+    if Option.mem a pos ~equal:Position.equal then Some "red" else None
   ;;
 +|
 +|module Model = struct
@@ -132,14 +133,23 @@
 +|;;
 
 ==== /src/apple.mli ====
--1,7 +1,20
-  open! Core
+-2,16 +2,29
   open! Bonsai_web
   
+  (** A [t] represents an apple which may or may not be placed somewhere
+      on the grid. *)
   type t = Position.t option [@@deriving sexp]
   
+  (** [set_of_t t] returns a set of positions occupied by the apple. *)
   val set_of_t : t -> Set.Make(Position).t
+  
+  (** [spawn_random ~rows ~cols ~invalid_pos] creates an apple placed randomly
+      on a rows*cols grid; excluding cells in ~invalid_pos. *)
   val spawn_random : rows:int -> cols:int -> invalid_pos:Set.Make(Position).t -> t
+  
+  (** [cell_background t pos] computes the background of a cell at [pos], if
+      that cell is occupied by t. Otherwise, it returns [None] *)
+  val cell_background : t -> Position.t -> string option
 +|
 +|module Action : sig
 +|  type t =
@@ -155,7 +165,7 @@
 +|  -> (t * (Action.t -> unit Effect.t)) Computation.t
 
 ==== /src/board.ml ====
--85,40 +85,38
+-66,40 +66,38
     in
     Vdom.(Node.div [ Node.p [ Node.textf "Score: %d" score ]; view_status ])
   ;;
@@ -215,7 +225,7 @@
     -> Vdom.Node.t Computation.t
 
 ==== /src/player.ml ====
--1,0 +1,85
+-1,0 +1,86
 +|open! Core
 +|open! Bonsai
 +|
@@ -246,15 +256,16 @@
 +|
 +|let ate_apple_score = 1
 +|
-+|let default_model ~rows ~cols =
++|let default_model ~rows ~cols ~color =
 +|  (* Spawn in left half, going right*)
-+|  let snake = Snake.spawn_random ~rows ~cols:(cols / 2) in
++|  let snake = Snake.spawn_random ~rows ~cols:(cols / 2) ~color in
 +|  { Model.score = 0; snake; direction = Right; status = Inactive Not_started }
 +|;;
 +|
 +|let apply_action
 +|  ~rows
 +|  ~cols
++|  ~color
 +|  ~inject:_
 +|  ~schedule_event
 +|  (model : Model.t)
@@ -262,7 +273,7 @@
 +|  =
 +|  match action, model.status with
 +|  | Restart, _ ->
-+|    let default = default_model ~rows ~cols in
++|    let default = default_model ~rows ~cols ~color in
 +|    { default with status = Playing }
 +|  | Move (apple, apple_inject), Playing ->
 +|    let snake = Snake.move model.snake model.direction in
@@ -287,15 +298,15 @@
 +|  | Move _, Inactive _ | Change_direction _, Inactive _ -> model
 +|;;
 +|
-+|let computation ~rows ~cols =
++|let computation ~rows ~cols ~color =
 +|  let open Bonsai.Let_syntax in
 +|  let%sub model, inject =
 +|    Bonsai.state_machine0
 +|      [%here]
 +|      (module Model)
 +|      (module Action)
-+|      ~default_model:(default_model ~rows ~cols)
-+|      ~apply_action:(apply_action ~rows ~cols)
++|      ~default_model:(default_model ~rows ~cols ~color)
++|      ~apply_action:(apply_action ~rows ~cols ~color)
 +|  in
 +|  let%arr model = model
 +|  and inject = inject in
@@ -303,7 +314,7 @@
 +|;;
 
 ==== /src/player.mli ====
--1,0 +1,18
+-1,0 +1,22
 +|open! Core
 +|open! Bonsai
 +|
@@ -321,4 +332,53 @@
 +|    | Change_direction of Direction.t
 +|end
 +|
-+|val computation : rows:int -> cols:int -> (t * (Action.t -> unit Effect.t)) Computation.t
++|val computation
++|  :  rows:int
++|  -> cols:int
++|  -> color:string
++|  -> (t * (Action.t -> unit Effect.t)) Computation.t
+
+==== /src/snake.mli ====
+-1,36 +1,12
+  open! Core
+  
+-|(** A [t] represents a snake, which keeps track of how much it
+-|    has left to grow. *)
+  type t [@@deriving sexp, equal]
+  
+-|(** [set_of_t t] returns a set of [Position.t]s occupied by the snake. *)
+  val set_of_t : t -> Set.Make(Position).t
+-|
+-|(** [head t] returns the [Position.t] occupied by the head (first element) of the snake. *)
+-|val head : t -> Position.t
+-|
+-|(** [is_eatting_self t] returns true iff the snake's head is overlapping with any of
+-|    the snake's body segments.  *)
++|val head : t -> Position.t
+-|val is_eatting_self : t -> bool
+-|
+-|(** [is_out_of_bounds ~rows ~cols t] returns true iff the snake's head has gone
+-|    outside of the [rows]*[cols] grid. *)
++|val is_eatting_self : t -> bool
+-|val is_out_of_bounds : rows:int -> cols:int -> t -> bool
+-|
+-|(** [spawn_random ~rows ~cols ~invalid_pos] creates a length-1 snake
+-|    placed randomly on the left half ([col < cols/2]) of a rows*cols grid.
+-|    The provided color will be used in calls to [cell_background]. *)
+-|val spawn_random : rows:int -> cols:int -> color:string -> t
+-|
+-|(** [move t dir] moves a snake 1 step in [dir]. It may or may not grow,
+-|    depending on its internal state. *)
++|val is_out_of_bounds : rows:int -> cols:int -> t -> bool
++|val spawn_random : rows:int -> cols:int -> color:string -> t
+-|val move : t -> Direction.t -> t
+-|
+-|(** [grow_eventually ~by] updates a snake's internal state to grow 1 cell
+-|    for the next [by] times [move] is called. *)
+-|val grow_eventually : by:int -> t -> t
+-|
+-|(** [cell_background t pos] computes the background of a cell at [pos], if
+-|    that cell is occupied by t. Otherwise, it returns [None] *)
++|val move : t -> Direction.t -> t
++|val grow_eventually : by:int -> t -> t
+  val cell_background : t -> Position.t -> string option

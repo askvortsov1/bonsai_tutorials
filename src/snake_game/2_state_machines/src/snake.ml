@@ -3,7 +3,7 @@ open! Core
 type t =
   { pos : Position.t Deque.t
   ; left_to_grow : int
-  ; color: string
+  ; color : string
   }
 [@@deriving sexp]
 

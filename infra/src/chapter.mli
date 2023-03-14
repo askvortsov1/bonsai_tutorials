@@ -1,5 +1,6 @@
 open! Core
 
+(** A [t] represents the readme and completed source code for a chapter of a tutorial. *)
 type t =
   { readme : string
   ; source : string Mem_fs.t
@@ -24,6 +25,6 @@ module Name : sig
   [@@deriving sexp, typed_fields]
 
   (** [process_name raw] splits chapter names of the form
-    {i}_{name} into tuples, None if the format is invalid. *)
+    "[i]_[name]" into tuples, [None] if the format is invalid. *)
   val resolve : string -> t option
 end
