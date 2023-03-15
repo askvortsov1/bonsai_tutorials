@@ -45,7 +45,7 @@ jobs:
         run: opam exec -- dune build
 
       - name: Format
-        run: opam exec -- dune build @fmt
+        run: opam exec -- dune build @fmt --auto-promote
 
       - name: Test
         run: opam exec -- dune test
