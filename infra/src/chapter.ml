@@ -8,16 +8,30 @@ type t =
 
 let mdx_prefix = "(* $MDX"
 
+let remove_consecutive_empty_line l =
+  let rec loop result l =
+    match l with
+    | "" :: "" :: tl -> loop result ("" :: tl)
+    | x :: tl -> loop (x :: result) tl
+    | [] -> List.rev result
+  in
+  loop [] l
+;;
+
 let clean chapter =
-  let clean_mdx ~path:_ contents =
+  let clean_mdx ~path contents =
     if String.is_empty contents
     then contents
     else
       contents
       |> String.split_lines
       |> List.filter ~f:(fun l -> not (String.is_prefix ~prefix:mdx_prefix l))
+      |> (let extension = Tuple2.get2 (Filename.split_extension path) in
+          if Option.mem extension "ml" ~equal:String.equal
+          then remove_consecutive_empty_line
+          else Fn.id)
       |> String.concat ~sep:"\n"
-      |> fun x -> x ^ "\n"
+      |> fun x -> if String.is_suffix ~suffix:"\n" x then x else x ^ "\n"
   in
   let trim_opam_suffix =
     let opam_regex = Re.compile (Re.Posix.re "([a-zA-Z_-])[0-9]*\\.opam") in

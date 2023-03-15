@@ -35,24 +35,62 @@ let%expect_test "Name.resolve" =
 
 let%expect_test "clean mdx" =
   let open Or_error.Let_syntax in
-  let clean_chapter_with_mdx =
-    let with_mdx_lines =
-      {| something
-(* $MDX part-begin="x)
-something else
-(* $MDX part-end) |}
-    in
-    let%bind source = Infra_src.Mem_fs.of_file_list "" [ "", with_mdx_lines ] in
+  let make_singleton_fs path file =
+    let%bind source = Infra_src.Mem_fs.of_file_list "" [ path, file ] in
     let%bind cleaned = clean { readme = ""; source } in
     Or_error.return cleaned
   in
-  print_s [%message (clean_chapter_with_mdx : t Or_error.t)];
+  let mdx_contents_with_newlines =
+    {| something
+let x = 10
+(* $MDX part-begin=y *)
+let y = 15
+
+
+let q = x + y
+(* $MDX part-end *)
+
+(* $MDX part-begin=z *)
+let z = 100
+(* $MDX part-end *)|}
+  in
+  let not_ml_file = make_singleton_fs "" mdx_contents_with_newlines in
+  print_s [%message (not_ml_file : t Or_error.t)];
   [%expect
     {|
-    (clean_chapter_with_mdx
+    (not_ml_file
      (Ok
       ((readme "")
-       (source ((root_dir .) (files ((""  " something\
-                                         \nsomething else\
-                                         \n")))))))) |}]
+       (source
+        ((root_dir .)
+         (files
+          ((""
+             " something\
+            \nlet x = 10\
+            \nlet y = 15\
+            \n\
+            \n\
+            \nlet q = x + y\
+            \n\
+            \nlet z = 100\
+            \n")))))))) |}];
+  let ml_file = make_singleton_fs "file.ml" mdx_contents_with_newlines in
+  print_s [%message (ml_file : t Or_error.t)];
+  [%expect
+    {|
+    (ml_file
+     (Ok
+      ((readme "")
+       (source
+        ((root_dir .)
+         (files
+          ((file.ml
+             " something\
+            \nlet x = 10\
+            \nlet y = 15\
+            \n\
+            \nlet q = x + y\
+            \n\
+            \nlet z = 100\
+            \n")))))))) |}]
 ;;
