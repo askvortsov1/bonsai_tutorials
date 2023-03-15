@@ -44,7 +44,7 @@ also give you a chance to play around inspect types by hovering.
 `diffs` contains auto-generated diffs between versions in `src`, so you can see exactly what changed in any chapter.
 
 The 0th chapter of each tutorial is an explanation of the starter code and file structure. From there, you'll be building out the project one step at a time. Each chapter will introduce new concepts.
-The goal of this tutorial is to teach you how to use Bonsai.
+The goal of this tutorial is to teach you how to *use* Bonsai.
 We won't cover much of the conceptual background, history, inner workings, or all of the available tools.
 For that, you should read our [explanatory documentation](https://bonsai.red/). We recommend having it open, and will be linking to it frequently.
 
