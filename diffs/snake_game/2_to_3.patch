@@ -1,5 +1,5 @@
 ==== /src/app.ml ====
--12,61 +12,73
+-12,60 +12,77
   }
   |}]
   
@@ -18,40 +18,48 @@
     (* State *)
 -|  let%sub player, player_inject = Player.computation ~rows ~cols ~color:"green" in
 +|  let%sub player1, player1_inject = Player.computation ~rows ~cols ~color:"green" in
--|  let%sub invalid_pos =
+-|  let%sub apple, apple_inject = Apple.computation ~rows ~cols in
 +|  let%sub player2, player2_inject = Player.computation ~rows ~cols ~color:"blue" in
-+|  let%sub invalid_pos =
--|    let%arr player = player in
--|    Snake.set_of_t player.snake
++|  let%sub apple, apple_inject = Apple.computation ~rows ~cols in
++|  let%sub game_elements =
 +|    let%arr player1 = player1
-+|    and player2 = player2 in
-+|    Set.union (Snake.set_of_t player1.snake) (Snake.set_of_t player2.snake)
-    in
-    let%sub apple, apple_inject = Apple.computation ~rows ~cols ~invalid_pos in
++|    and player2 = player2
++|    and apple = apple
++|    and apple_inject = apple_inject in
++|    { Game_elements.snakes = [ player1.snake; player2.snake ]
++|    ; apples = [ apple, apple_inject ]
++|    }
++|  in
     (* Tick logic *)
     let%sub () =
       let%sub clock_effect =
 -|      let%arr player_inject = player_inject
+-|      and apple = apple
+-|      and apple_inject = apple_inject in
+-|      player_inject (Move (apple, apple_inject))
 +|      let%arr player1_inject = player1_inject
 +|      and player2_inject = player2_inject
-        and apple = apple
-        and apple_inject = apple_inject in
--|      player_inject (Move (apple, apple_inject))
++|      and game_elements = game_elements in
 +|      Effect.Many
-+|        [ player1_inject (Move (apple, apple_inject))
-+|        ; player2_inject (Move (apple, apple_inject))
-+|        ]
++|        [ player1_inject (Move game_elements); player2_inject (Move game_elements) ]
       in
       Bonsai.Clock.every [%here] (Time_ns.Span.of_sec 0.25) clock_effect
     in
     (* Reset logic *)
     let%sub reset_action =
 -|    let%arr player_inject = player_inject
+-|    and apple_inject = apple_inject
+-|    and player = player
+-|    and apple = apple in
 +|    let%arr player1_inject = player1_inject
 +|    and player2_inject = player2_inject
-      and apple_inject = apple_inject in
--|    Effect.Many [ player_inject Restart; apple_inject Spawn ]
-+|    Effect.Many [ player1_inject Restart; player2_inject Restart; apple_inject Spawn ]
++|    and apple_inject = apple_inject
++|    and game_elements = game_elements in
+-|    let invalid_pos = Snake.list_of_t player.snake @ Apple.list_of_t apple in
++|    let invalid_pos = Game_elements.occupied_pos game_elements in
+-|    Effect.Many [ player_inject Restart; apple_inject (Spawn invalid_pos) ]
++|    Effect.Many
++|      [ player1_inject Restart; player2_inject Restart; apple_inject (Spawn invalid_pos) ]
     in
     (* View component *)
 -|  let%sub board = Board.component ~rows ~cols player apple in
@@ -87,6 +95,72 @@
              ])
         [ board ])
   ;;
+
+==== /src/apple.ml ====
+-10,35 +10,33
+  ;;
+  
+  let spawn_random ~rows ~cols ~invalid_pos = Position.random_pos ~rows ~cols ~invalid_pos
+  let is_eatten a s = Option.mem a (Snake.head s) ~equal:Position.equal
+  
+  let cell_background a pos =
+    if Option.mem a pos ~equal:Position.equal then Some "red" else None
+  ;;
+  
+  module Model = struct
+    type t = Position.t option [@@deriving sexp, equal]
+  end
+  
+  module Action = struct
+    type t =
+      | Spawn of Position.t list
+-|    | Eatten of Snake.t
++|    | Eatten of Position.t list
+    [@@deriving sexp]
+  end
+  
+-|let apply_action ~rows ~cols ~inject:_ ~schedule_event:_ model action =
++|let apply_action ~rows ~cols ~inject:_ ~schedule_event:_ _model action =
+    match action with
+-|  | Action.Eatten snake ->
+-|    spawn_random ~rows ~cols ~invalid_pos:(list_of_t model @ Snake.list_of_t snake)
+-|  | Spawn invalid_pos -> spawn_random ~rows ~cols ~invalid_pos
++|  | Action.Eatten invalid_pos | Spawn invalid_pos -> spawn_random ~rows ~cols ~invalid_pos
+  ;;
+  
+  let computation ~rows ~cols =
+    Bonsai.state_machine0
+      [%here]
+      (module Model)
+      (module Action)
+      ~default_model:None
+      ~apply_action:(apply_action ~rows ~cols)
+  ;;
+
+==== /src/apple.mli ====
+-10,21 +10,21
+  
+  (** [spawn_random ~rows ~cols ~invalid_pos] creates an apple placed randomly
+      on a rows*cols grid; excluding cells in ~invalid_pos. *)
+  val spawn_random : rows:int -> cols:int -> invalid_pos:Position.t list -> t
+  
+  (** [is_eatten t s] returns true iff the apple is at the same position as the given
+      snake's head.  *)
+  val is_eatten : t -> Snake.t -> bool
+  
+  (** [cell_background t pos] computes the background of a cell at [pos], if
+      that cell is occupied by t. Otherwise, it returns [None] *)
+  val cell_background : t -> Position.t -> string option
+  
+  module Action : sig
+    type t =
+      | Spawn of Position.t list
+-|    | Eatten of Snake.t
++|    | Eatten of Position.t list
+    [@@deriving sexp]
+  end
+  
+  val computation : rows:int -> cols:int -> (t * (Action.t -> unit Effect.t)) Computation.t
 
 ==== /src/board.ml ====
 -19,85 +19,96
@@ -207,3 +281,157 @@
 +|  -> Player.t Value.t
     -> Apple.t Value.t
     -> Vdom.Node.t Computation.t
+
+==== /src/game_elements.ml ====
+-1,0 +1,16
++|open! Core
++|open Bonsai
++|
++|type t =
++|  { snakes : Snake.t list
++|  ; apples : (Apple.t * (Apple.Action.t -> unit Effect.t)) list
++|  }
++|[@@deriving sexp]
++|
++|let occupied_pos t =
++|  let snake_pos = t.snakes |> List.map ~f:Snake.list_of_t |> List.join in
++|  let apple_pos =
++|    t.apples |> List.map ~f:Tuple2.get1 |> List.map ~f:Apple.list_of_t |> List.join
++|  in
++|  snake_pos @ apple_pos
++|;;
+
+==== /src/game_elements.mli ====
+-1,0 +1,10
++|open! Core
++|open Bonsai
++|
++|type t =
++|  { snakes : Snake.t list
++|  ; apples : (Apple.t * (Apple.Action.t -> unit Effect.t)) list
++|  }
++|[@@deriving sexp]
++|
++|val occupied_pos : t -> Position.t list
+
+==== /src/player.ml ====
+-8,76 +8,82
+    }
+  [@@deriving sexp, fields]
+  
+  module Model = struct
+    type t =
+      { score : int
+      ; snake : Snake.t
+      ; direction : Direction.t
+      ; status : Player_status.t
+      }
+    [@@deriving sexp, equal]
+  end
+  
+  module Action = struct
+    type t =
+      | Restart
+-|    | Move of (Apple.t * (Apple.Action.t -> unit Effect.t))
++|    | Move of Game_elements.t
+      | Change_direction of Direction.t
+    [@@deriving sexp]
+  end
+  
+  let ate_apple_score = 1
+  
+  let default_model ~rows ~cols ~color =
+    (* Spawn in left half, going right*)
+    let snake = Snake.spawn_random ~rows ~cols:(cols / 2) ~color in
+    { Model.score = 0; snake; direction = Right; status = Inactive Not_started }
+  ;;
+  
+  let apply_action
+    ~rows
+    ~cols
+    ~color
+    ~inject:_
+    ~schedule_event
+    (model : Model.t)
+    (action : Action.t)
+    =
+    match action, model.status with
+    | Restart, _ ->
+      let default = default_model ~rows ~cols ~color in
+      { default with status = Playing }
+-|  | Move (apple, apple_inject), Playing ->
++|  | Move game_elements, Playing ->
+      let snake = Snake.move model.snake model.direction in
+      let (status : Player_status.t) =
+        if Snake.is_eatting_self snake
+        then Inactive Ate_self
+        else if Snake.is_out_of_bounds ~rows ~cols snake
+        then Inactive Out_of_bounds
+        else Playing
+      in
+-|    if Apple.is_eatten apple snake
+-|    then (
+-|      let () = schedule_event (apple_inject (Apple.Action.Eatten snake)) in
++|    let num_apples_eatten =
++|      let apples_eatten =
++|        game_elements.apples
++|        |> List.filter ~f:(fun (apple, _) -> Apple.is_eatten apple snake)
++|      in
++|      let invalid_pos = Game_elements.occupied_pos game_elements in
++|      List.iter apples_eatten ~f:(fun (_, apple_inject) ->
++|        schedule_event (apple_inject (Eatten invalid_pos)));
++|      List.length apples_eatten
++|    in
+-|      { Model.direction = model.direction
+-|      ; snake = Snake.grow_eventually ~by:1 snake
++|    { Model.direction = model.direction
++|    ; snake = Snake.grow_eventually ~by:num_apples_eatten snake
+-|      ; score = model.score + ate_apple_score
+-|      ; status
+-|      })
+-|    else { Model.direction = model.direction; snake; score = model.score; status }
++|    ; score = model.score + (num_apples_eatten * ate_apple_score)
++|    ; status
++|    }
+    | Change_direction dir, Playing -> { model with direction = dir }
+    | Move _, Inactive _ | Change_direction _, Inactive _ -> model
+  ;;
+  
+  let computation ~rows ~cols ~color =
+    let open Bonsai.Let_syntax in
+    let%sub model, inject =
+      Bonsai.state_machine0
+        [%here]
+        (module Model)
+        (module Action)
+        ~default_model:(default_model ~rows ~cols ~color)
+        ~apply_action:(apply_action ~rows ~cols ~color)
+    in
+    let%arr model = model
+    and inject = inject in
+
+==== /src/player.mli ====
+-1,22 +1,22
+  open! Core
+  open! Bonsai
+  
+  type t =
+    { score : int
+    ; snake : Snake.t
+    ; status : Player_status.t
+    }
+  [@@deriving sexp, fields]
+  
+  module Action : sig
+    type t =
+      | Restart
+-|    | Move of (Apple.t * (Apple.Action.t -> unit Effect.t))
++|    | Move of Game_elements.t
+      | Change_direction of Direction.t
+  end
+  
+  val computation
+    :  rows:int
+    -> cols:int
+    -> color:string
+    -> (t * (Action.t -> unit Effect.t)) Computation.t

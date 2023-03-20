@@ -11,7 +11,7 @@ type t =
 module Action : sig
   type t =
     | Restart
-    | Move of (Apple.t * (Apple.Action.t -> unit Effect.t))
+    | Move of Game_elements.t
     | Change_direction of Direction.t
 end
 

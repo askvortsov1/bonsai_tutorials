@@ -1,5 +1,5 @@
 ==== /src/app.ml ====
--1,19 +1,72
+-1,19 +1,71
   open! Core
   open! Bonsai_web
   
@@ -19,7 +19,7 @@
   
 -|let component =
 -|  let snake = Snake.spawn_random ~rows ~cols ~color:"green" in
--|  let apple = Apple.spawn_random ~rows ~cols ~invalid_pos:(Snake.set_of_t snake) in
+-|  let apple = Apple.spawn_random ~rows ~cols ~invalid_pos:(Snake.list_of_t snake) in
 -|  let score = 100 in
 -|  let player_status = Player_status.Playing in
 -|  Board.component
@@ -40,11 +40,7 @@
 +|  let open Bonsai.Let_syntax in
 +|  (* State *)
 +|  let%sub player, player_inject = Player.computation ~rows ~cols ~color:"green" in
-+|  let%sub invalid_pos =
-+|    let%arr player = player in
-+|    Snake.set_of_t player.snake
-+|  in
-+|  let%sub apple, apple_inject = Apple.computation ~rows ~cols ~invalid_pos in
++|  let%sub apple, apple_inject = Apple.computation ~rows ~cols in
 +|  (* Tick logic *)
 +|  let%sub () =
 +|    let%sub clock_effect =
@@ -58,8 +54,11 @@
 +|  (* Reset logic *)
 +|  let%sub reset_action =
 +|    let%arr player_inject = player_inject
-+|    and apple_inject = apple_inject in
-+|    Effect.Many [ player_inject Restart; apple_inject Spawn ]
++|    and apple_inject = apple_inject
++|    and player = player
++|    and apple = apple in
++|    let invalid_pos = Snake.list_of_t player.snake @ Apple.list_of_t apple in
++|    Effect.Many [ player_inject Restart; apple_inject (Spawn invalid_pos) ]
 +|  in
 +|  (* View component *)
 +|  let%sub board = Board.component ~rows ~cols player apple in
@@ -86,19 +85,19 @@
   ;;
 
 ==== /src/apple.ml ====
--4,16 +4,44
+-2,16 +2,43
+  open! Bonsai_web
+  
   type t = Position.t option [@@deriving sexp, equal]
   
-  let set_of_t t =
-    let module Pos_set = Set.Make (Position) in
+  let list_of_t t =
     match t with
-    | Some pos -> Pos_set.singleton pos
-    | None -> Pos_set.empty
+    | Some pos -> [ pos ]
+    | None -> []
   ;;
   
-  let spawn_random ~rows ~cols ~invalid_pos =
-    Position.random_pos ~rows ~cols ~invalid_pos:(Set.to_list invalid_pos)
-  ;;
+  let spawn_random ~rows ~cols ~invalid_pos = Position.random_pos ~rows ~cols ~invalid_pos
+  let is_eatten a s = Option.mem a (Snake.head s) ~equal:Position.equal
   
   let cell_background a pos =
     if Option.mem a pos ~equal:Position.equal then Some "red" else None
@@ -110,42 +109,41 @@
 +|
 +|module Action = struct
 +|  type t =
-+|    | Spawn
-+|    | Eatten
++|    | Spawn of Position.t list
++|    | Eatten of Snake.t
 +|  [@@deriving sexp]
 +|end
 +|
-+|let apply_action ~rows ~cols ~inject:_ ~schedule_event:_ invalid_pos model action =
-+|  let apple_set = set_of_t model in
-+|  let full_invalid_pos = Set.union invalid_pos apple_set in
++|let apply_action ~rows ~cols ~inject:_ ~schedule_event:_ model action =
 +|  match action with
-+|  | Action.Eatten | Spawn -> spawn_random ~rows ~cols ~invalid_pos:full_invalid_pos
++|  | Action.Eatten snake ->
++|    spawn_random ~rows ~cols ~invalid_pos:(list_of_t model @ Snake.list_of_t snake)
++|  | Spawn invalid_pos -> spawn_random ~rows ~cols ~invalid_pos
 +|;;
 +|
-+|let computation ~rows ~cols ~invalid_pos =
-+|  Bonsai.state_machine1
++|let computation ~rows ~cols =
++|  Bonsai.state_machine0
 +|    [%here]
 +|    (module Model)
 +|    (module Action)
 +|    ~default_model:None
 +|    ~apply_action:(apply_action ~rows ~cols)
-+|    invalid_pos
 +|;;
 
 ==== /src/apple.mli ====
--2,16 +2,29
-  open! Bonsai_web
-  
-  (** A [t] represents an apple which may or may not be placed somewhere
-      on the grid. *)
+-6,16 +6,25
   type t = Position.t option [@@deriving sexp]
   
-  (** [set_of_t t] returns a set of positions occupied by the apple. *)
-  val set_of_t : t -> Set.Make(Position).t
+  (** [list_of_t t] returns a list of positions occupied by the apple. *)
+  val list_of_t : t -> Position.t list
   
   (** [spawn_random ~rows ~cols ~invalid_pos] creates an apple placed randomly
       on a rows*cols grid; excluding cells in ~invalid_pos. *)
-  val spawn_random : rows:int -> cols:int -> invalid_pos:Set.Make(Position).t -> t
+  val spawn_random : rows:int -> cols:int -> invalid_pos:Position.t list -> t
+  
+  (** [is_eatten t s] returns true iff the apple is at the same position as the given
+      snake's head.  *)
+  val is_eatten : t -> Snake.t -> bool
   
   (** [cell_background t pos] computes the background of a cell at [pos], if
       that cell is occupied by t. Otherwise, it returns [None] *)
@@ -153,16 +151,12 @@
 +|
 +|module Action : sig
 +|  type t =
-+|    | Spawn
-+|    | Eatten
++|    | Spawn of Position.t list
++|    | Eatten of Snake.t
 +|  [@@deriving sexp]
 +|end
 +|
-+|val computation
-+|  :  rows:int
-+|  -> cols:int
-+|  -> invalid_pos:Set.Make(Position).t Value.t
-+|  -> (t * (Action.t -> unit Effect.t)) Computation.t
++|val computation : rows:int -> cols:int -> (t * (Action.t -> unit Effect.t)) Computation.t
 
 ==== /src/board.ml ====
 -66,40 +66,38
@@ -225,7 +219,7 @@
     -> Vdom.Node.t Computation.t
 
 ==== /src/player.ml ====
--1,0 +1,86
+-1,0 +1,85
 +|open! Core
 +|open! Bonsai
 +|
@@ -284,10 +278,9 @@
 +|      then Inactive Out_of_bounds
 +|      else Playing
 +|    in
-+|    let ate_apple = Option.mem apple (Snake.head snake) ~equal:Position.equal in
-+|    if ate_apple
++|    if Apple.is_eatten apple snake
 +|    then (
-+|      let () = schedule_event (apple_inject Apple.Action.Eatten) in
++|      let () = schedule_event (apple_inject (Apple.Action.Eatten snake)) in
 +|      { Model.direction = model.direction
 +|      ; snake = Snake.grow_eventually ~by:1 snake
 +|      ; score = model.score + ate_apple_score

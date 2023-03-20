@@ -27,23 +27,24 @@ let component =
   (* State *)
   let%sub player1, player1_inject = Player.computation ~rows ~cols ~color:"green" in
   let%sub player2, player2_inject = Player.computation ~rows ~cols ~color:"blue" in
-  let%sub invalid_pos =
+  let%sub apple, apple_inject = Apple.computation ~rows ~cols in
+  let%sub game_elements =
     let%arr player1 = player1
-    and player2 = player2 in
-    Set.union (Snake.set_of_t player1.snake) (Snake.set_of_t player2.snake)
+    and player2 = player2
+    and apple = apple
+    and apple_inject = apple_inject in
+    { Game_elements.snakes = [ player1.snake; player2.snake ]
+    ; apples = [ apple, apple_inject ]
+    }
   in
-  let%sub apple, apple_inject = Apple.computation ~rows ~cols ~invalid_pos in
   (* Tick logic *)
   let%sub () =
     let%sub clock_effect =
       let%arr player1_inject = player1_inject
       and player2_inject = player2_inject
-      and apple = apple
-      and apple_inject = apple_inject in
+      and game_elements = game_elements in
       Effect.Many
-        [ player1_inject (Move (apple, apple_inject))
-        ; player2_inject (Move (apple, apple_inject))
-        ]
+        [ player1_inject (Move game_elements); player2_inject (Move game_elements) ]
     in
     Bonsai.Clock.every [%here] (Time_ns.Span.of_sec 0.25) clock_effect
   in
@@ -51,8 +52,11 @@ let component =
   let%sub reset_action =
     let%arr player1_inject = player1_inject
     and player2_inject = player2_inject
-    and apple_inject = apple_inject in
-    Effect.Many [ player1_inject Restart; player2_inject Restart; apple_inject Spawn ]
+    and apple_inject = apple_inject
+    and game_elements = game_elements in
+    let invalid_pos = Game_elements.occupied_pos game_elements in
+    Effect.Many
+      [ player1_inject Restart; player2_inject Restart; apple_inject (Spawn invalid_pos) ]
   in
   (* View component *)
   let%sub board = Board.component ~rows ~cols player1 player2 apple in

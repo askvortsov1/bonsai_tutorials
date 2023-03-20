@@ -26,11 +26,7 @@ let component =
   let open Bonsai.Let_syntax in
   (* State *)
   let%sub player, player_inject = Player.computation ~rows ~cols ~color:"green" in
-  let%sub invalid_pos =
-    let%arr player = player in
-    Snake.set_of_t player.snake
-  in
-  let%sub apple, apple_inject = Apple.computation ~rows ~cols ~invalid_pos in
+  let%sub apple, apple_inject = Apple.computation ~rows ~cols in
   (* Tick logic *)
   let%sub () =
     let%sub clock_effect =
@@ -44,8 +40,11 @@ let component =
   (* Reset logic *)
   let%sub reset_action =
     let%arr player_inject = player_inject
-    and apple_inject = apple_inject in
-    Effect.Many [ player_inject Restart; apple_inject Spawn ]
+    and apple_inject = apple_inject
+    and player = player
+    and apple = apple in
+    let invalid_pos = Snake.list_of_t player.snake @ Apple.list_of_t apple in
+    Effect.Many [ player_inject Restart; apple_inject (Spawn invalid_pos) ]
   in
   (* View component *)
   let%sub board = Board.component ~rows ~cols player apple in

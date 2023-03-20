@@ -9,7 +9,7 @@
 +|
 +|let component =
 +|  let snake = Snake.spawn_random ~rows ~cols ~color:"green" in
-+|  let apple = Apple.spawn_random ~rows ~cols ~invalid_pos:(Snake.set_of_t snake) in
++|  let apple = Apple.spawn_random ~rows ~cols ~invalid_pos:(Snake.list_of_t snake) in
 +|  let score = 100 in
 +|  let player_status = Player_status.Playing in
 +|  Board.component
@@ -22,29 +22,27 @@
 +|;;
 
 ==== /src/apple.ml ====
--1,0 +1,19
+-1,0 +1,17
 +|open! Core
 +|open! Bonsai_web
 +|
 +|type t = Position.t option [@@deriving sexp, equal]
 +|
-+|let set_of_t t =
-+|  let module Pos_set = Set.Make (Position) in
++|let list_of_t t =
 +|  match t with
-+|  | Some pos -> Pos_set.singleton pos
-+|  | None -> Pos_set.empty
++|  | Some pos -> [ pos ]
++|  | None -> []
 +|;;
 +|
-+|let spawn_random ~rows ~cols ~invalid_pos =
-+|  Position.random_pos ~rows ~cols ~invalid_pos:(Set.to_list invalid_pos)
-+|;;
++|let spawn_random ~rows ~cols ~invalid_pos = Position.random_pos ~rows ~cols ~invalid_pos
++|let is_eatten a s = Option.mem a (Snake.head s) ~equal:Position.equal
 +|
 +|let cell_background a pos =
 +|  if Option.mem a pos ~equal:Position.equal then Some "red" else None
 +|;;
 
 ==== /src/apple.mli ====
--1,0 +1,17
+-1,0 +1,21
 +|open! Core
 +|open! Bonsai_web
 +|
@@ -52,12 +50,16 @@
 +|    on the grid. *)
 +|type t = Position.t option [@@deriving sexp]
 +|
-+|(** [set_of_t t] returns a set of positions occupied by the apple. *)
-+|val set_of_t : t -> Set.Make(Position).t
++|(** [list_of_t t] returns a list of positions occupied by the apple. *)
++|val list_of_t : t -> Position.t list
 +|
 +|(** [spawn_random ~rows ~cols ~invalid_pos] creates an apple placed randomly
 +|   on a rows*cols grid; excluding cells in ~invalid_pos. *)
-+|val spawn_random : rows:int -> cols:int -> invalid_pos:Set.Make(Position).t -> t
++|val spawn_random : rows:int -> cols:int -> invalid_pos:Position.t list -> t
++|
++|(** [is_eatten t s] returns true iff the apple is at the same position as the given
++|    snake's head.  *)
++|val is_eatten : t -> Snake.t -> bool
 +|
 +|(** [cell_background t pos] computes the background of a cell at [pos], if
 +|    that cell is occupied by t. Otherwise, it returns [None] *)
@@ -300,7 +302,7 @@
 +|val random_pos : rows:int -> cols:int -> invalid_pos:t list -> t option
 
 ==== /src/snake.ml ====
--1,0 +1,53
+-1,0 +1,47
 +|open! Core
 +|
 +|type t =
@@ -315,11 +317,7 @@
 +|  && Int.equal a.left_to_grow b.left_to_grow
 +|;;
 +|
-+|let set_of_t x =
-+|  let module Pos_set = Set.Make (Position) in
-+|  x.pos |> Deque.to_list |> Pos_set.of_list
-+|;;
-+|
++|let list_of_t s = Deque.to_list s.pos
 +|let head s = Deque.peek_front_exn s.pos
 +|
 +|let spawn_random ~rows ~cols ~color =
@@ -344,15 +342,13 @@
 +|;;
 +|
 +|let is_eatting_self s =
-+|  let module Pos_set = Set.Make (Position) in
-+|  match Deque.to_list s.pos with
-+|  | head :: tail -> Set.mem (Pos_set.of_list tail) head
++|  match list_of_t s with
++|  | head :: tail -> List.mem tail head ~equal:Position.equal
 +|  | [] -> false (* This should never happen. *)
 +|;;
 +|
-+|let cell_background s =
-+|  let set = set_of_t s in
-+|  fun pos -> if Set.mem set pos then Some s.color else None
++|let cell_background s pos =
++|  if List.mem (list_of_t s) pos ~equal:Position.equal then Some s.color else None
 +|;;
 
 ==== /src/snake.mli ====
@@ -363,8 +359,8 @@
 +|    has left to grow. *)
 +|type t [@@deriving sexp, equal]
 +|
-+|(** [set_of_t t] returns a set of [Position.t]s occupied by the snake. *)
-+|val set_of_t : t -> Set.Make(Position).t
++|(** [list_of_t t] returns a list of [Position.t]s occupied by the snake. *)
++|val list_of_t : t -> Position.t list
 +|
 +|(** [head t] returns the [Position.t] occupied by the head (first element) of the snake. *)
 +|val head : t -> Position.t

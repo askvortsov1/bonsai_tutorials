@@ -21,7 +21,7 @@ end
 module Action = struct
   type t =
     | Restart
-    | Move of (Apple.t * (Apple.Action.t -> unit Effect.t))
+    | Move of Game_elements.t
     | Change_direction of Direction.t
   [@@deriving sexp]
 end
@@ -47,7 +47,7 @@ let apply_action
   | Restart, _ ->
     let default = default_model ~rows ~cols ~color in
     { default with status = Playing }
-  | Move (apple, apple_inject), Playing ->
+  | Move game_elements, Playing ->
     let snake = Snake.move model.snake model.direction in
     let (status : Player_status.t) =
       if Snake.is_eatting_self snake
@@ -56,16 +56,21 @@ let apply_action
       then Inactive Out_of_bounds
       else Playing
     in
-    let ate_apple = Option.mem apple (Snake.head snake) ~equal:Position.equal in
-    if ate_apple
-    then (
-      let () = schedule_event (apple_inject Apple.Action.Eatten) in
-      { Model.direction = model.direction
-      ; snake = Snake.grow_eventually ~by:1 snake
-      ; score = model.score + ate_apple_score
-      ; status
-      })
-    else { Model.direction = model.direction; snake; score = model.score; status }
+    let num_apples_eatten =
+      let apples_eatten =
+        game_elements.apples
+        |> List.filter ~f:(fun (apple, _) -> Apple.is_eatten apple snake)
+      in
+      let invalid_pos = Game_elements.occupied_pos game_elements in
+      List.iter apples_eatten ~f:(fun (_, apple_inject) ->
+        schedule_event (apple_inject (Eatten invalid_pos)));
+      List.length apples_eatten
+    in
+    { Model.direction = model.direction
+    ; snake = Snake.grow_eventually ~by:num_apples_eatten snake
+    ; score = model.score + (num_apples_eatten * ate_apple_score)
+    ; status
+    }
   | Change_direction dir, Playing -> { model with direction = dir }
   | Move _, Inactive _ | Change_direction _, Inactive _ -> model
 ;;

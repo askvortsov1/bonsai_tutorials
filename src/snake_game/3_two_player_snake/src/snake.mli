@@ -4,8 +4,8 @@ open! Core
     has left to grow. *)
 type t [@@deriving sexp, equal]
 
-(** [set_of_t t] returns a set of [Position.t]s occupied by the snake. *)
-val set_of_t : t -> Set.Make(Position).t
+(** [list_of_t t] returns a list of [Position.t]s occupied by the snake. *)
+val list_of_t : t -> Position.t list
 
 (** [head t] returns the [Position.t] occupied by the head (first element) of the snake. *)
 val head : t -> Position.t

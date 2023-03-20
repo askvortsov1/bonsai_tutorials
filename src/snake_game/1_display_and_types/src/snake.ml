@@ -12,11 +12,7 @@ let equal a b =
   && Int.equal a.left_to_grow b.left_to_grow
 ;;
 
-let set_of_t x =
-  let module Pos_set = Set.Make (Position) in
-  x.pos |> Deque.to_list |> Pos_set.of_list
-;;
-
+let list_of_t s = Deque.to_list s.pos
 let head s = Deque.peek_front_exn s.pos
 
 let spawn_random ~rows ~cols ~color =
@@ -41,13 +37,11 @@ let is_out_of_bounds ~rows ~cols s =
 ;;
 
 let is_eatting_self s =
-  let module Pos_set = Set.Make (Position) in
-  match Deque.to_list s.pos with
-  | head :: tail -> Set.mem (Pos_set.of_list tail) head
+  match list_of_t s with
+  | head :: tail -> List.mem tail head ~equal:Position.equal
   | [] -> false (* This should never happen. *)
 ;;
 
-let cell_background s =
-  let set = set_of_t s in
-  fun pos -> if Set.mem set pos then Some s.color else None
+let cell_background s pos =
+  if List.mem (list_of_t s) pos ~equal:Position.equal then Some s.color else None
 ;;
