@@ -85,7 +85,7 @@
   ;;
 
 ==== /src/apple.ml ====
--2,16 +2,43
+-2,16 +2,41
   open! Bonsai_web
   
   type t = Position.t option [@@deriving sexp, equal]
@@ -110,15 +110,13 @@
 +|module Action = struct
 +|  type t =
 +|    | Spawn of Position.t list
-+|    | Eatten of Snake.t
++|    | Eatten of Position.t list
 +|  [@@deriving sexp]
 +|end
 +|
-+|let apply_action ~rows ~cols ~inject:_ ~schedule_event:_ model action =
++|let apply_action ~rows ~cols ~inject:_ ~schedule_event:_ _model action =
 +|  match action with
-+|  | Action.Eatten snake ->
-+|    spawn_random ~rows ~cols ~invalid_pos:(list_of_t model @ Snake.list_of_t snake)
-+|  | Spawn invalid_pos -> spawn_random ~rows ~cols ~invalid_pos
++|  | Action.Eatten invalid_pos | Spawn invalid_pos -> spawn_random ~rows ~cols ~invalid_pos
 +|;;
 +|
 +|let computation ~rows ~cols =
@@ -152,7 +150,7 @@
 +|module Action : sig
 +|  type t =
 +|    | Spawn of Position.t list
-+|    | Eatten of Snake.t
++|    | Eatten of Position.t list
 +|  [@@deriving sexp]
 +|end
 +|
@@ -219,7 +217,7 @@
     -> Vdom.Node.t Computation.t
 
 ==== /src/player.ml ====
--1,0 +1,85
+-1,0 +1,86
 +|open! Core
 +|open! Bonsai
 +|
@@ -280,7 +278,8 @@
 +|    in
 +|    if Apple.is_eatten apple snake
 +|    then (
-+|      let () = schedule_event (apple_inject (Apple.Action.Eatten snake)) in
++|      let invalid_pos = Snake.list_of_t snake @ Apple.list_of_t apple in
++|      let () = schedule_event (apple_inject (Apple.Action.Eatten invalid_pos)) in
 +|      { Model.direction = model.direction
 +|      ; snake = Snake.grow_eventually ~by:1 snake
 +|      ; score = model.score + ate_apple_score

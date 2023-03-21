@@ -58,7 +58,8 @@ let apply_action
     in
     if Apple.is_eatten apple snake
     then (
-      let () = schedule_event (apple_inject (Apple.Action.Eatten snake)) in
+      let invalid_pos = Snake.list_of_t snake @ Apple.list_of_t apple in
+      let () = schedule_event (apple_inject (Apple.Action.Eatten invalid_pos)) in
       { Model.direction = model.direction
       ; snake = Snake.grow_eventually ~by:1 snake
       ; score = model.score + ate_apple_score

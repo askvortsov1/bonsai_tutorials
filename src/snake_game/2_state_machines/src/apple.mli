@@ -23,7 +23,7 @@ val cell_background : t -> Position.t -> string option
 module Action : sig
   type t =
     | Spawn of Position.t list
-    | Eatten of Snake.t
+    | Eatten of Position.t list
   [@@deriving sexp]
 end
 

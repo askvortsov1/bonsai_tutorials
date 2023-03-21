@@ -23,15 +23,13 @@ end
 module Action = struct
   type t =
     | Spawn of Position.t list
-    | Eatten of Snake.t
+    | Eatten of Position.t list
   [@@deriving sexp]
 end
 
-let apply_action ~rows ~cols ~inject:_ ~schedule_event:_ model action =
+let apply_action ~rows ~cols ~inject:_ ~schedule_event:_ _model action =
   match action with
-  | Action.Eatten snake ->
-    spawn_random ~rows ~cols ~invalid_pos:(list_of_t model @ Snake.list_of_t snake)
-  | Spawn invalid_pos -> spawn_random ~rows ~cols ~invalid_pos
+  | Action.Eatten invalid_pos | Spawn invalid_pos -> spawn_random ~rows ~cols ~invalid_pos
 ;;
 
 let computation ~rows ~cols =
