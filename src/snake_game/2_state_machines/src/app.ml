@@ -43,7 +43,7 @@ let component =
     and apple_inject = apple_inject
     and player = player
     and apple = apple in
-    let invalid_pos = Snake.list_of_t player.snake @ Apple.list_of_t apple in
+    let invalid_pos = Player.snake_pos player @ Apple.list_of_t apple in
     Effect.Many [ player_inject Restart; apple_inject (Spawn invalid_pos) ]
   in
   (* View component *)

@@ -19,26 +19,12 @@ module Style =
 }
 |}]
 
-let background_str_of_pos ~snakes ~apples =
-  let drivers =
-    List.join
-      [ List.map snakes ~f:Snake.cell_background
-      ; List.map apples ~f:Apple.cell_background
-      ]
-  in
-  fun pos ->
-    match List.find_map drivers ~f:(fun driver -> driver pos) with
-    | Some x -> x
-    | None -> "white"
-;;
-
-let view_board rows cols snake apple =
-  let background_fn = background_str_of_pos ~snakes:[ snake ] ~apples:[ apple ] in
+let view_board rows cols cell_bg_driver =
   let cells =
     List.init rows ~f:(fun row ->
       List.init cols ~f:(fun col ->
         let pos = { Position.row; col } in
-        let background_str = background_fn pos in
+        let background_str = cell_bg_driver pos in
         let css = Css_gen.create ~field:"background" ~value:background_str in
         Vdom.(
           Node.div
@@ -49,22 +35,34 @@ let view_board rows cols snake apple =
   Vdom.(Node.div ~attr:(Attr.class_ Style.grid) cells)
 ;;
 
-let view_instructions = Vdom.(Node.p [ Node.text "Click anywhere to start or reset." ])
+let view_instructions = Vdom.(Node.p [ Node.text "Click anywhere to reset." ])
 
-let view_score_status score status =
-  let view_status =
-    match status with
-    | Player_status.Playing -> Vdom.Node.none
-    | Inactive reason ->
-      let message_text =
-        match reason with
-        | Not_started -> "Click to start!"
-        | Out_of_bounds -> "Game over... Out of bounds!"
-        | Ate_self -> "Game over... Ate self!"
-      in
-      Vdom.(Node.p [ Node.text message_text ])
+let view_score_status ~label player =
+  let content =
+    let open Vdom.Node in
+    let score_text score = p [ textf "Score: %d" score ] in
+    match player with
+    | Player.Not_started -> [ p [ text "Click to start!" ] ]
+    | Playing data -> [ score_text data.score ]
+    | Game_over (data, Out_of_bounds) ->
+      [ p [ text "Game over... Out of bounds!" ]; score_text data.score ]
+    | Game_over (data, Ate_self) ->
+      [ p [ text "Game over... Ate self!" ]; score_text data.score ]
   in
-  Vdom.(Node.div [ Node.p [ Node.textf "Score: %d" score ]; view_status ])
+  Vdom.(Node.div (Node.h3 [ Node.text label ] :: content))
+;;
+
+let merge_cell_bg_drivers ~snakes ~apples =
+  let drivers =
+    List.join
+      [ List.map snakes ~f:Snake.cell_background
+      ; List.map apples ~f:Apple.cell_background
+      ]
+  in
+  fun pos ->
+    match List.find_map drivers ~f:(fun driver -> driver pos) with
+    | Some x -> x
+    | None -> "white"
 ;;
 
 let set_style_property key value =
@@ -91,13 +89,19 @@ let component ~rows ~cols player apple =
     |> Value.return
   in
   let%sub () = Bonsai.Edge.lifecycle ~on_activate () in
-  let%arr { Player.score; snake; status } = player
+  let%arr player = player
   and apple = apple in
+  let cell_bg_driver =
+    match player with
+    | Player.Not_started -> merge_cell_bg_drivers ~snakes:[] ~apples:[]
+    | Playing data | Game_over (data, _) ->
+      merge_cell_bg_drivers ~snakes:[ data.snake ] ~apples:[ apple ]
+  in
   Vdom.(
     Node.div
       [ Node.h1 [ Node.text "Snake Game" ]
       ; view_instructions
-      ; view_score_status score status
-      ; view_board rows cols snake apple
+      ; view_score_status ~label:"Results" player
+      ; view_board rows cols cell_bg_driver
       ])
 ;;

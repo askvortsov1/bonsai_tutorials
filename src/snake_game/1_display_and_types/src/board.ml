@@ -19,26 +19,12 @@ module Style =
 }
 |}]
 
-let background_str_of_pos ~snakes ~apples =
-  let drivers =
-    List.join
-      [ List.map snakes ~f:Snake.cell_background
-      ; List.map apples ~f:Apple.cell_background
-      ]
-  in
-  fun pos ->
-    match List.find_map drivers ~f:(fun driver -> driver pos) with
-    | Some x -> x
-    | None -> "white"
-;;
-
-let view_board rows cols snake apple =
-  let background_fn = background_str_of_pos ~snakes:[ snake ] ~apples:[ apple ] in
+let view_board rows cols cell_bg_driver =
   let cells =
     List.init rows ~f:(fun row ->
       List.init cols ~f:(fun col ->
         let pos = { Position.row; col } in
-        let background_str = background_fn pos in
+        let background_str = cell_bg_driver pos in
         let css = Css_gen.create ~field:"background" ~value:background_str in
         Vdom.(
           Node.div
@@ -49,22 +35,19 @@ let view_board rows cols snake apple =
   Vdom.(Node.div ~attr:(Attr.class_ Style.grid) cells)
 ;;
 
-let view_instructions = Vdom.(Node.p [ Node.text "Click anywhere to start or reset." ])
+let view_instructions = Vdom.(Node.p [ Node.text "Click anywhere to reset." ])
 
-let view_score_status score status =
-  let view_status =
-    match status with
-    | Player_status.Playing -> Vdom.Node.none
-    | Inactive reason ->
-      let message_text =
-        match reason with
-        | Not_started -> "Click to start!"
-        | Out_of_bounds -> "Game over... Out of bounds!"
-        | Ate_self -> "Game over... Ate self!"
-      in
-      Vdom.(Node.p [ Node.text message_text ])
+let merge_cell_bg_drivers ~snakes ~apples =
+  let drivers =
+    List.join
+      [ List.map snakes ~f:Snake.cell_background
+      ; List.map apples ~f:Apple.cell_background
+      ]
   in
-  Vdom.(Node.div [ Node.p [ Node.textf "Score: %d" score ]; view_status ])
+  fun pos ->
+    match List.find_map drivers ~f:(fun driver -> driver pos) with
+    | Some x -> x
+    | None -> "white"
 ;;
 
 let set_style_property key value =
@@ -79,7 +62,7 @@ let set_style_property key value =
   ignore res
 ;;
 
-let component ~rows ~cols snake score player_status apple =
+let component ~rows ~cols snake apple =
   let open Bonsai.Let_syntax in
   (* TODO: use `Attr.css_var` instead. *)
   let on_activate =
@@ -91,15 +74,13 @@ let component ~rows ~cols snake score player_status apple =
     |> Value.return
   in
   let%sub () = Bonsai.Edge.lifecycle ~on_activate () in
-  let%arr score = score
-  and snake = snake
-  and status = player_status
+  let%arr snake = snake
   and apple = apple in
+  let cell_bg_driver = merge_cell_bg_drivers ~snakes:[ snake ] ~apples:[ apple ] in
   Vdom.(
     Node.div
       [ Node.h1 [ Node.text "Snake Game" ]
       ; view_instructions
-      ; view_score_status score status
-      ; view_board rows cols snake apple
+      ; view_board rows cols cell_bg_driver
       ])
 ;;

@@ -33,7 +33,7 @@ let component =
     and player2 = player2
     and apple = apple
     and apple_inject = apple_inject in
-    { Game_elements.snakes = [ player1.snake; player2.snake ]
+    { Game_elements.snakes = Player.snakes [ player1; player2 ]
     ; apples = [ apple, apple_inject ]
     }
   in

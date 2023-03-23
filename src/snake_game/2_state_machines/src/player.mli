@@ -1,12 +1,29 @@
 open! Core
 open! Bonsai
 
+module End_reason : sig
+  type t =
+    | Ate_self
+    | Out_of_bounds
+  [@@deriving sexp, equal]
+end
+
+module Data : sig
+  type t =
+    { score : int
+    ; snake : Snake.t
+    ; direction : Direction.t
+    }
+  [@@deriving sexp, equal, fields]
+end
+
 type t =
-  { score : int
-  ; snake : Snake.t
-  ; status : Player_status.t
-  }
-[@@deriving sexp, fields]
+  | Not_started
+  | Playing of Data.t
+  | Game_over of (Data.t * End_reason.t)
+[@@deriving sexp, equal, variants]
+
+val snake_pos : t -> Position.t list
 
 module Action : sig
   type t =
