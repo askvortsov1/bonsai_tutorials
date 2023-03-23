@@ -1,22 +1,24 @@
 open! Core
 
-module S = struct
-  type t =
-    { col : int
-    ; row : int
-    }
-  [@@deriving equal, compare, sexp]
-end
+type t =
+  { col : int
+  ; row : int
+  }
+[@@deriving equal, sexp]
 
-module Pos_set = Set.Make (S)
-include S
+let step { row; col } dir =
+  match dir with
+  | Direction.Left -> { row; col = col - 1 }
+  | Right -> { row; col = col + 1 }
+  | Up -> { row = row - 1; col }
+  | Down -> { row = row + 1; col }
+;;
 
 let random_pos ~rows ~cols ~invalid_pos =
-  let invalid_pos_set = Pos_set.of_list invalid_pos in
   let valid_pos =
     List.init rows ~f:(fun row -> List.init cols ~f:(fun col -> { row; col }))
     |> List.concat
-    |> List.filter ~f:(fun x -> not (Set.mem invalid_pos_set x))
+    |> List.filter ~f:(fun x -> not (List.mem ~equal invalid_pos x))
   in
   if List.is_empty valid_pos
   then None

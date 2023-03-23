@@ -188,7 +188,7 @@
 +|  -> Vdom.Node.t Computation.t
 
 ==== /src/direction.ml ====
--1,0 +1,16
+-1,0 +1,8
 +|open! Core
 +|
 +|type t =
@@ -197,17 +197,9 @@
 +|  | Right
 +|  | Left
 +|[@@deriving sexp, equal]
-+|
-+|let next_position t { Position.row; col } : Position.t =
-+|  match t with
-+|  | Left -> { row; col = col - 1 }
-+|  | Right -> { row; col = col + 1 }
-+|  | Up -> { row = row - 1; col }
-+|  | Down -> { row = row + 1; col }
-+|;;
 
 ==== /src/direction.mli ====
--1,0 +1,13
+-1,0 +1,9
 +|open! Core
 +|
 +|(** A [t] represents a direction on the playing board. *)
@@ -217,10 +209,6 @@
 +|  | Right
 +|  | Left
 +|[@@deriving sexp, equal]
-+|
-+|(** [next_position t pos] returns the next position after taking a step in
-+|    [t] from [pos] *)
-+|val next_position : t -> Position.t -> Position.t
 
 ==== /src/player_status.ml ====
 -1,0 +1,14
@@ -257,26 +245,28 @@
 +|[@@deriving sexp, equal]
 
 ==== /src/position.ml ====
--1,0 +1,26
+-1,0 +1,28
 +|open! Core
 +|
-+|module S = struct
-+|  type t =
-+|    { col : int
-+|    ; row : int
-+|    }
-+|  [@@deriving equal, compare, sexp]
-+|end
++|type t =
++|  { col : int
++|  ; row : int
++|  }
++|[@@deriving equal, sexp]
 +|
-+|module Pos_set = Set.Make (S)
-+|include S
++|let step { row; col } dir =
++|  match dir with
++|  | Direction.Left -> { row; col = col - 1 }
++|  | Right -> { row; col = col + 1 }
++|  | Up -> { row = row - 1; col }
++|  | Down -> { row = row + 1; col }
++|;;
 +|
 +|let random_pos ~rows ~cols ~invalid_pos =
-+|  let invalid_pos_set = Pos_set.of_list invalid_pos in
 +|  let valid_pos =
 +|    List.init rows ~f:(fun row -> List.init cols ~f:(fun col -> { row; col }))
 +|    |> List.concat
-+|    |> List.filter ~f:(fun x -> not (Set.mem invalid_pos_set x))
++|    |> List.filter ~f:(fun x -> not (List.mem ~equal invalid_pos x))
 +|  in
 +|  if List.is_empty valid_pos
 +|  then None
@@ -286,7 +276,7 @@
 +|;;
 
 ==== /src/position.mli ====
--1,0 +1,13
+-1,0 +1,17
 +|open! Core
 +|
 +|(** A [t] represents a square on the playing area, identified by its row and
@@ -295,10 +285,14 @@
 +|  { col : int
 +|  ; row : int
 +|  }
-+|[@@deriving equal, compare, sexp]
++|[@@deriving equal, sexp]
++|
++|(** [step t dir] returns the next position after taking a step in
++|    [dir] from [t]. *)
++|val step : t -> Direction.t -> t
 +|
 +|(** [random_pos ~rows ~cols ~invalid_pos] returns a random [t] with
-+|    [t.row < rows] and [t.col < cols]. *)
++|    [t.row < rows] and [t.col < cols], which is not in [invalid_pos]. *)
 +|val random_pos : rows:int -> cols:int -> invalid_pos:t list -> t option
 
 ==== /src/snake.ml ====
@@ -327,7 +321,7 @@
 +|;;
 +|
 +|let move s dir =
-+|  let new_head = Direction.next_position dir (head s) in
++|  let new_head = Position.step (head s) dir in
 +|  Deque.enqueue_front s.pos new_head;
 +|  if Int.equal s.left_to_grow 0 then ignore (Deque.dequeue_back s.pos : Position.t option);
 +|  let left_to_grow = Int.max 0 (s.left_to_grow - 1) in

@@ -16,6 +16,7 @@ In this chapter, we'll:
 We recommend pairing it with:
 
 - The [Virtual_dom documentation](https://bonsai.red/01-virtual_dom.html)
+- Docs about [the core Value.t and Computation.t types](https://bonsai.red/02-dynamism.html)
 - Bonsai's [guide to CSS and styling](https://bonsai.red/08-css.html)
 
 ## Defining Data Models

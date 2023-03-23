@@ -61,7 +61,43 @@ how "hello world" in Bonsai works.
 
 ## Snake Design
 
-...
+<!-- TODO: complete from sketch -->
+
+### High-Level Behavior
+
+- On click
+  - Reset and start game
+- On game start:
+  - Randomly spawn in a snake and an apple
+- On tick:
+  - Snake advances
+  - If eat apple:
+    - it will grow over the next turn
+    - apple will respawn randomly
+    - score will increase
+  - If eat self or collide with wall
+    - game over
+- On key press
+  - Change snake direction
+
+### Display and Interactivity Implementation
+
+- Grid of `<div>`s arranged with css grid
+- `Snake` and `Apple` define "background drivers", which take `t` and a cell position, and return `string option` which will be set as the background CSS property.
+- Some other HTML for score, status, etc
+- To capture clicks/keydowns for movement and restart, define an `app` HTML element that takes up the whole page, and add `onclick` and `onkeydown` event listeners.
+
+### Snake and Apple Implementation
+
+- Apple is just a positon
+- Snake is a doubly linked list of positions. This makes moving the snake really simple: just put on a new head, and remove the tail. Growing the snake is also easy: add on the head, but don't remove the tail.
+
+### Stateful Elements
+
+- Player bundles a snake, a status, a direction, and a score. Can be updated with:
+  - Move, which runs the "on tick" steps above
+  - Change_direction, which updates the direction piece of state
+- Apple bundles just the apple
 
 ## Tutorial Plan
 

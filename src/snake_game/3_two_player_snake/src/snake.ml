@@ -22,7 +22,7 @@ let spawn_random ~rows ~cols ~color =
 ;;
 
 let move s dir =
-  let new_head = Direction.next_position dir (head s) in
+  let new_head = Position.step (head s) dir in
   Deque.enqueue_front s.pos new_head;
   if Int.equal s.left_to_grow 0 then ignore (Deque.dequeue_back s.pos : Position.t option);
   let left_to_grow = Int.max 0 (s.left_to_grow - 1) in
