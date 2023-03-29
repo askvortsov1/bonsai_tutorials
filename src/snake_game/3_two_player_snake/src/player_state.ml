@@ -23,24 +23,17 @@ module Model = struct
     | Playing of Data.t
     | Game_over of (Data.t * End_reason.t)
   [@@deriving sexp, equal, variants]
+
+  let snakes states =
+    List.fold states ~init:[] ~f:(fun snakes -> function
+      | Playing data | Game_over (data, _) -> data.snake :: snakes
+      | Not_started -> snakes)
+  ;;
 end
-
-include Model
-
-let snake_pos = function
-  | Playing data | Game_over (data, _) -> Snake.list_of_t data.snake
-  | Not_started -> []
-;;
-
-let snakes ps =
-  List.fold ps ~init:[] ~f:(fun snakes -> function
-    | Playing data | Game_over (data, _) -> data.snake :: snakes
-    | Not_started -> snakes)
-;;
 
 module Action = struct
   type t =
-    | Restart
+    | Restart of Game_elements.t
     | Move of Game_elements.t
     | Change_direction of Direction.t
   [@@deriving sexp]
@@ -53,15 +46,17 @@ let apply_action
   ~cols
   ~color
   ~inject:_
-  ~schedule_event
+  ~schedule_event:_
   (model : Model.t)
   (action : Action.t)
   =
   match action, model with
-  | Restart, _ ->
-    let snake = Snake.spawn_random ~rows ~cols:(cols / 2) ~color in
-    Playing { score = 0; snake; direction = Right }
+  | Restart game_elements, _ ->
+    let invalid_pos = Game_elements.occupied_pos game_elements in
+    let snake = Snake.spawn_random_exn ~rows ~cols:(cols / 2) ~color ~invalid_pos in
+    Model.Playing { score = 0; snake; direction = Right }
   | Move game_elements, Playing data ->
+    Js_of_ocaml.Firebug.console##log (Game_elements.print game_elements);
     let snake = Snake.move data.snake data.direction in
     if Snake.is_eatting_self snake
     then Game_over (data, Ate_self)
@@ -69,14 +64,9 @@ let apply_action
     then Game_over (data, Out_of_bounds)
     else (
       let num_apples_eatten =
-        let apples_eatten =
-          game_elements.apples
-          |> List.filter ~f:(fun (apple, _) -> Apple.is_eatten apple snake)
-        in
-        let invalid_pos = Game_elements.occupied_pos game_elements in
-        List.iter apples_eatten ~f:(fun (_, apple_inject) ->
-          schedule_event (apple_inject (Eatten invalid_pos)));
-        List.length apples_eatten
+        game_elements.apples
+        |> List.filter ~f:(Snake.is_eatting_apple snake)
+        |> List.length
       in
       Playing
         { direction = data.direction

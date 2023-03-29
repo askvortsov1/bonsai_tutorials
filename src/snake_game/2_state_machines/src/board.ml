@@ -42,7 +42,7 @@ let view_score_status ~label player =
     let open Vdom.Node in
     let score_text score = p [ textf "Score: %d" score ] in
     match player with
-    | Player.Not_started -> [ p [ text "Click to start!" ] ]
+    | Player_state.Model.Not_started -> [ p [ text "Click to start!" ] ]
     | Playing data -> [ score_text data.score ]
     | Game_over (data, Out_of_bounds) ->
       [ p [ text "Game over... Out of bounds!" ]; score_text data.score ]
@@ -92,9 +92,10 @@ let component ~rows ~cols player apple =
   let%arr player = player
   and apple = apple in
   let cell_bg_driver =
-    match player with
-    | Player.Not_started -> merge_cell_bg_drivers ~snakes:[] ~apples:[]
-    | Playing data | Game_over (data, _) ->
+    match player, apple with
+    | Player_state.Model.Not_started, _ | _, Apple_state.Model.Not_started ->
+      merge_cell_bg_drivers ~snakes:[] ~apples:[]
+    | Playing data, Playing apple | Game_over (data, _), Playing apple ->
       merge_cell_bg_drivers ~snakes:[ data.snake ] ~apples:[ apple ]
   in
   Vdom.(

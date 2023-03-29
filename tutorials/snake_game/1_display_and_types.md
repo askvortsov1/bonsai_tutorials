@@ -8,7 +8,6 @@ our Snake implementation will be based around:
 
 - `Position.t` and `Direction.t`, which represent coordinates and directions on the game grid, respectively.
 - `Apple.t`, a type encapsulating the position of the apple, and functions to spawn a new apple.
-- `Player_status.t`, which represents whether the game is in progress or inactive, and if applicable, why the game ended.
 - `Snake.t`, which encapsulates the positions and growth state of the snake, and functions for
   getting the positions, checking whether it has eatten itself, spawning new snakes, etc.
 
@@ -153,9 +152,9 @@ let random_pos ~rows ~cols ~invalid_pos =
 Some improvements to this implementation are left as exercises at the end of this
 chapter.
 
-### Player_status.t
-
 ### Apple.t
+
+Let's implement the first of our "more interesting" types.
 
 ### Snake.t
 

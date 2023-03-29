@@ -1,7 +1,7 @@
 # Implementing State
 
 In the [last chapter](1_display_and_types.md), we implemented types and logic for
-building blocks like `Snake.t`, `Apple.t`, and `Player_status.t`.
+building blocks like `Position.t`, `Direction.t`, `Snake.t`, and `Apple.t`.
 We then built `Board.component`, which renders the game into Vdom.
 
 In this chapter, we'll bundle those building blocks in Bonsai state machines,

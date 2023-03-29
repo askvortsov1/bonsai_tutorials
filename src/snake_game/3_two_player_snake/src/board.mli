@@ -4,7 +4,7 @@ open! Bonsai_web
 val component
   :  rows:int
   -> cols:int
-  -> Player.t Value.t
-  -> Player.t Value.t
-  -> Apple.t Value.t
+  -> Player_state.Model.t Value.t
+  -> Player_state.Model.t Value.t
+  -> Game_elements.t Value.t
   -> Vdom.Node.t Computation.t
