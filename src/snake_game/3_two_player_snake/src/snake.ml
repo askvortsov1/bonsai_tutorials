@@ -13,13 +13,18 @@ let equal a b =
 ;;
 
 let list_of_t s = Deque.to_list s.pos
-let head s = Deque.peek_front_exn s.pos
 
-let spawn_random ~rows ~cols ~color =
-  let head = Position.random_pos ~rows ~cols ~invalid_pos:[] in
+let spawn_random_exn ~rows ~cols ~color ~invalid_pos =
+  let head = Position.random_pos ~rows ~cols ~invalid_pos in
   let head_exn = Option.value_exn head in
   { pos = Deque.of_array [| head_exn |]; left_to_grow = 0; color }
 ;;
+
+let cell_background s pos =
+  if List.mem (list_of_t s) pos ~equal:Position.equal then Some s.color else None
+;;
+
+let head s = Deque.peek_front_exn s.pos
 
 let move s dir =
   let new_head = Position.step (head s) dir in
@@ -36,12 +41,10 @@ let is_out_of_bounds ~rows ~cols s =
   row < 0 || row >= rows || col < 0 || col >= cols
 ;;
 
+let is_eatting_apple s a = List.exists (Apple.list_of_t a) ~f:(Position.equal (head s))
+
 let is_eatting_self s =
   match list_of_t s with
   | head :: tail -> List.mem tail head ~equal:Position.equal
   | [] -> false (* This should never happen. *)
-;;
-
-let cell_background s pos =
-  if List.mem (list_of_t s) pos ~equal:Position.equal then Some s.color else None
 ;;

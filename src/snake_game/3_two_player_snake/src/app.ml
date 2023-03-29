@@ -12,8 +12,8 @@ html,body{min-height:100%; height:100%;}
 }
 |}]
 
-let rows = 20
-let cols = 20
+let rows = 3
+let cols = 3
 
 let get_keydown_key evt =
   evt##.code
@@ -25,41 +25,65 @@ let get_keydown_key evt =
 let component =
   let open Bonsai.Let_syntax in
   (* State *)
-  let%sub player1, player1_inject = Player.computation ~rows ~cols ~color:"green" in
-  let%sub player2, player2_inject = Player.computation ~rows ~cols ~color:"blue" in
-  let%sub apple, apple_inject = Apple.computation ~rows ~cols in
+  let%sub player1, player1_inject = Player_state.computation ~rows ~cols ~color:"green" in
+  let%sub player2, player2_inject = Player_state.computation ~rows ~cols ~color:"blue" in
+  let%sub apple, apple_inject = Apple_state.computation ~rows ~cols in
   let%sub game_elements =
     let%arr player1 = player1
     and player2 = player2
-    and apple = apple
-    and apple_inject = apple_inject in
-    { Game_elements.snakes = Player.snakes [ player1; player2 ]
-    ; apples = [ apple, apple_inject ]
+    and apple = apple in
+    { Game_elements.snakes = Player_state.Model.snakes [ player1; player2 ]
+    ; apples = Apple_state.Model.apples [ apple ]
     }
   in
   (* Tick logic *)
   let%sub () =
-    let%sub clock_effect =
+    let%sub player1_effect =
       let%arr player1_inject = player1_inject
-      and player2_inject = player2_inject
       and game_elements = game_elements in
-      Effect.Many
-        [ player1_inject (Move game_elements); player2_inject (Move game_elements) ]
+      player1_inject (Move game_elements)
     in
-    Bonsai.Clock.every [%here] (Time_ns.Span.of_sec 0.25) clock_effect
+    let%sub player2_effect =
+      let%arr player2_inject = player2_inject
+      and game_elements = game_elements in
+      player2_inject (Move game_elements)
+    in
+    let%sub apple_effect =
+      let%arr apple_inject = apple_inject
+      and game_elements = game_elements in
+      apple_inject (Tick game_elements)
+    in
+    let effects =
+      [ player1_effect; player2_effect; apple_effect ]
+      |> Value.all
+      |> Value.map ~f:(fun e -> Effect.Many e)
+    in
+    Bonsai.Clock.every [%here] (Time_ns.Span.of_sec 2.) effects
   in
   (* Reset logic *)
   let%sub reset_action =
-    let%arr player1_inject = player1_inject
-    and player2_inject = player2_inject
-    and apple_inject = apple_inject
-    and game_elements = game_elements in
-    let invalid_pos = Game_elements.occupied_pos game_elements in
-    Effect.Many
-      [ player1_inject Restart; player2_inject Restart; apple_inject (Spawn invalid_pos) ]
+    let%sub player1_effect =
+      let%arr player1_inject = player1_inject
+      and game_elements = game_elements in
+      player1_inject (Restart game_elements)
+    in
+    let%sub player2_effect =
+      let%arr player2_inject = player2_inject
+      and game_elements = game_elements in
+      player2_inject (Restart game_elements)
+    in
+    let%sub apple_effect =
+      let%arr apple_inject = apple_inject
+      and game_elements = game_elements in
+      apple_inject (Spawn game_elements)
+    in
+    [ player1_effect; player2_effect; apple_effect ]
+    |> Value.all
+    |> Value.map ~f:(fun e -> Effect.Many e)
+    |> Bonsai.read
   in
   (* View component *)
-  let%sub board = Board.component ~rows ~cols player1 player2 apple in
+  let%sub board = Board.component ~rows ~cols player1 player2 game_elements in
   let%arr board = board
   and player1_inject = player1_inject
   and player2_inject = player2_inject

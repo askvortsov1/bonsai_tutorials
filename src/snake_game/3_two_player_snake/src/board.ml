@@ -42,7 +42,7 @@ let view_score_status ~label player =
     let open Vdom.Node in
     let score_text score = p [ textf "Score: %d" score ] in
     match player with
-    | Player.Not_started -> [ p [ text "Click to start!" ] ]
+    | Player_state.Model.Not_started -> [ p [ text "Click to start!" ] ]
     | Playing data -> [ score_text data.score ]
     | Game_over (data, Out_of_bounds) ->
       [ p [ text "Game over... Out of bounds!" ]; score_text data.score ]
@@ -77,7 +77,7 @@ let set_style_property key value =
   ignore res
 ;;
 
-let component ~rows ~cols player1 player2 apple =
+let component ~rows ~cols player1 player2 (game_elements : Game_elements.t Value.t) =
   let open Bonsai.Let_syntax in
   (* TODO: use `Attr.css_var` instead. *)
   let on_activate =
@@ -91,9 +91,10 @@ let component ~rows ~cols player1 player2 apple =
   let%sub () = Bonsai.Edge.lifecycle ~on_activate () in
   let%arr player1 = player1
   and player2 = player2
-  and apple = apple in
-  let snakes = Player.snakes [ player1; player2 ] in
-  let cell_bg_driver = merge_cell_bg_drivers ~snakes ~apples:[ apple ] in
+  and game_elements = game_elements in
+  let cell_bg_driver =
+    merge_cell_bg_drivers ~snakes:game_elements.snakes ~apples:game_elements.apples
+  in
   Vdom.(
     Node.div
       [ Node.h1 [ Node.text "Snake Game" ]

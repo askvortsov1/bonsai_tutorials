@@ -25,15 +25,17 @@ let get_keydown_key evt =
 let component =
   let open Bonsai.Let_syntax in
   (* State *)
-  let%sub player, player_inject = Player.computation ~rows ~cols ~color:"green" in
-  let%sub apple, apple_inject = Apple.computation ~rows ~cols in
+  let%sub player, player_inject = Player_state.computation ~rows ~cols ~color:"green" in
+  let%sub apple, apple_inject = Apple_state.computation ~rows ~cols in
   (* Tick logic *)
   let%sub () =
     let%sub clock_effect =
       let%arr player_inject = player_inject
       and apple = apple
       and apple_inject = apple_inject in
-      player_inject (Move (apple, apple_inject))
+      match apple with
+      | Playing apple -> player_inject (Move (apple, apple_inject))
+      | Not_started -> Effect.Ignore
     in
     Bonsai.Clock.every [%here] (Time_ns.Span.of_sec 0.25) clock_effect
   in
@@ -43,7 +45,9 @@ let component =
     and apple_inject = apple_inject
     and player = player
     and apple = apple in
-    let invalid_pos = Player.snake_pos player @ Apple.list_of_t apple in
+    let invalid_pos =
+      Player_state.Model.snake_pos player @ Apple_state.Model.apple_pos apple
+    in
     Effect.Many [ player_inject Restart; apple_inject (Spawn invalid_pos) ]
   in
   (* View component *)
