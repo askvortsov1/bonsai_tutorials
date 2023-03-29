@@ -39,19 +39,25 @@ let component =
   (* Tick logic *)
   let%sub () =
     let%sub player1_effect =
-      let%arr player1_inject = player1_inject
-      and game_elements = game_elements in
-      player1_inject (Move game_elements)
+      Bonsai.lazy_
+        (lazy
+          (let%arr player1_inject = player1_inject
+           and game_elements = game_elements in
+           player1_inject (Move game_elements)))
     in
     let%sub player2_effect =
-      let%arr player2_inject = player2_inject
-      and game_elements = game_elements in
-      player2_inject (Move game_elements)
+      Bonsai.lazy_
+        (lazy
+          (let%arr player2_inject = player2_inject
+           and game_elements = game_elements in
+           player2_inject (Move game_elements)))
     in
     let%sub apple_effect =
-      let%arr apple_inject = apple_inject
-      and game_elements = game_elements in
-      apple_inject (Tick game_elements)
+      Bonsai.lazy_
+        (lazy
+          (let%arr apple_inject = apple_inject
+           and game_elements = game_elements in
+           apple_inject (Tick game_elements)))
     in
     let effects =
       [ player1_effect; player2_effect; apple_effect ]
@@ -63,19 +69,25 @@ let component =
   (* Reset logic *)
   let%sub reset_action =
     let%sub player1_effect =
-      let%arr player1_inject = player1_inject
-      and game_elements = game_elements in
-      player1_inject (Restart game_elements)
+      Bonsai.lazy_
+        (lazy
+          (let%arr player1_inject = player1_inject
+           and game_elements = game_elements in
+           player1_inject (Restart game_elements)))
     in
     let%sub player2_effect =
-      let%arr player2_inject = player2_inject
-      and game_elements = game_elements in
-      player2_inject (Restart game_elements)
+      Bonsai.lazy_
+        (lazy
+          (let%arr player2_inject = player2_inject
+           and game_elements = game_elements in
+           player2_inject (Restart game_elements)))
     in
     let%sub apple_effect =
-      let%arr apple_inject = apple_inject
-      and game_elements = game_elements in
-      apple_inject (Spawn game_elements)
+      Bonsai.lazy_
+        (lazy
+          (let%arr apple_inject = apple_inject
+           and game_elements = game_elements in
+           apple_inject (Spawn game_elements)))
     in
     [ player1_effect; player2_effect; apple_effect ]
     |> Value.all
