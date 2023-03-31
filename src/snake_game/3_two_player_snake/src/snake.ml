@@ -1,37 +1,34 @@
 open! Core
 
 type t =
-  { pos : Position.t Deque.t
+  { pos : Position.t list
   ; left_to_grow : int
   ; color : string
   }
-[@@deriving sexp]
+[@@deriving sexp, equal]
 
-let equal a b =
-  List.equal Position.equal (Deque.to_list a.pos) (Deque.to_list b.pos)
-  && Int.equal a.left_to_grow b.left_to_grow
-;;
-
-let list_of_t s = Deque.to_list s.pos
+let list_of_t s = s.pos
 
 let spawn_random_exn ~rows ~cols ~color ~invalid_pos =
   let head = Position.random_pos ~rows ~cols ~invalid_pos in
   let head_exn = Option.value_exn head in
-  { pos = Deque.of_array [| head_exn |]; left_to_grow = 0; color }
+  { pos = [ head_exn ]; left_to_grow = 0; color }
 ;;
 
 let cell_background s pos =
   if List.mem (list_of_t s) pos ~equal:Position.equal then Some s.color else None
 ;;
 
-let head s = Deque.peek_front_exn s.pos
+let head s = List.hd_exn s.pos
 
 let move s dir =
   let new_head = Position.step (head s) dir in
-  Deque.enqueue_front s.pos new_head;
-  if Int.equal s.left_to_grow 0 then ignore (Deque.dequeue_back s.pos : Position.t option);
+  let new_pos =
+    let with_head = new_head :: s.pos in
+    if Int.equal s.left_to_grow 0 then List.drop_last_exn with_head else with_head
+  in
   let left_to_grow = Int.max 0 (s.left_to_grow - 1) in
-  { s with left_to_grow }
+  { s with left_to_grow; pos = new_pos }
 ;;
 
 let grow_eventually ~by s = { s with left_to_grow = s.left_to_grow + by }
