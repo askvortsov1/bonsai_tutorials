@@ -56,7 +56,6 @@ let apply_action
     let snake = Snake.spawn_random_exn ~rows ~cols:(cols / 2) ~color ~invalid_pos in
     Model.Playing { score = 0; snake; direction = Right }
   | Move game_elements, Playing data ->
-    Js_of_ocaml.Firebug.console##log (Game_elements.print game_elements);
     let snake = Snake.move data.snake data.direction in
     if Snake.is_eatting_self snake
     then Game_over (data, Ate_self)

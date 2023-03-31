@@ -55,15 +55,15 @@ let component =
   (* State *)
   let%sub player1, player1_inject = Player_state.computation ~rows ~cols ~color:"green" in
   let%sub player2, player2_inject = Player_state.computation ~rows ~cols ~color:"blue" in
-  let%sub apple, apple_inject = Apple_state.computation ~rows ~cols in
+  let%sub apple1, apple1_inject = Apple_state.computation ~rows ~cols in
   let%sub apple2, apple2_inject = Apple_state.computation ~rows ~cols in
   let%sub game_elements =
     let%arr player1 = player1
     and player2 = player2
-    and apple = apple
+    and apple1 = apple1
     and apple2 = apple2 in
     { Game_elements.snakes = Player_state.Model.snakes [ player1; player2 ]
-    ; apples = Apple_state.Model.apples [ apple; apple2 ]
+    ; apples = Apple_state.Model.apples [ apple1; apple2 ]
     }
   in
   let%sub scheduler = chain_scheduler game_elements in
@@ -72,29 +72,30 @@ let component =
     let%sub clock_effect =
       let%arr player1_inject = player1_inject
       and player2_inject = player2_inject
-      and apple_inject = apple_inject
+      and apple1_inject = apple1_inject
       and apple2_inject = apple2_inject
       and scheduler = scheduler in
       scheduler
         [ (fun g -> player1_inject (Move g))
         ; (fun g -> player2_inject (Move g))
-        ; (fun g -> apple_inject (Tick g))
+        ; (fun g -> apple1_inject (Tick g))
         ; (fun g -> apple2_inject (Tick g))
         ]
     in
-    Bonsai.Clock.every [%here] (Time_ns.Span.of_sec 2.) clock_effect
+    Bonsai.Clock.every [%here] (Time_ns.Span.of_sec 0.25) clock_effect
   in
   (* Reset logic *)
   let%sub reset_action =
     let%arr player1_inject = player1_inject
     and player2_inject = player2_inject
-    and apple_inject = apple_inject
+    and apple1_inject = apple1_inject
+    and apple2_inject = apple2_inject
     and scheduler = scheduler in
     scheduler
       [ (fun g -> player1_inject (Restart g))
       ; (fun g -> player2_inject (Restart g))
-      ; (fun g -> apple_inject (Spawn g))
-      (* ; (fun g -> apple2_inject (Spawn g)) *)
+      ; (fun g -> apple1_inject (Spawn g))
+      ; (fun g -> apple2_inject (Spawn g))
       ]
   in
   (* View component *)
