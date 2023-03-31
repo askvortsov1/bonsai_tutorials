@@ -7,4 +7,3 @@ type t =
 [@@deriving sexp]
 
 val occupied_pos : t -> Position.t list
-val print : t -> string

@@ -30,7 +30,6 @@ let apply_action ~rows ~cols ~inject:_ ~schedule_event:_ model action =
   match action, model with
   | Action.Spawn game_elements, _ -> spawn ~rows ~cols game_elements
   | Tick game_elements, Model.Playing apple ->
-    Js_of_ocaml.Firebug.console##log (Game_elements.print game_elements);
     if List.exists game_elements.snakes ~f:(fun s -> Snake.is_eatting_apple s apple)
     then spawn ~rows ~cols game_elements
     else model
