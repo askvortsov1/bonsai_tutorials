@@ -12,8 +12,8 @@ html,body{min-height:100%; height:100%;}
 }
 |}]
 
-let rows = 3
-let cols = 3
+let rows = 20
+let cols = 20
 
 let get_keydown_key evt =
   evt##.code
@@ -22,77 +22,80 @@ let get_keydown_key evt =
   |> Js_of_ocaml.Js.to_string
 ;;
 
+let chain_scheduler
+  : type a. a Value.t -> ((a -> unit Ui_effect.t) list -> unit Ui_effect.t) Computation.t
+  =
+ fun input ->
+  let module Action = struct
+    type t = Run of (a -> unit Effect.t) list [@@deriving sexp]
+  end
+  in
+  let apply_action ~inject ~schedule_event input _model (Action.Run effect_fns) =
+    match effect_fns with
+    | effect_fn :: dependents ->
+      schedule_event (Effect.Many [ effect_fn input; inject (Action.Run dependents) ])
+    | [] -> ()
+  in
+  let open Bonsai.Let_syntax in
+  let%sub (), inject =
+    Bonsai.state_machine1
+      [%here]
+      (module Unit)
+      (module Action)
+      ~default_model:()
+      ~apply_action
+      input
+  in
+  let%arr inject = inject in
+  fun effects -> inject (Action.Run effects)
+;;
+
 let component =
   let open Bonsai.Let_syntax in
   (* State *)
   let%sub player1, player1_inject = Player_state.computation ~rows ~cols ~color:"green" in
   let%sub player2, player2_inject = Player_state.computation ~rows ~cols ~color:"blue" in
   let%sub apple, apple_inject = Apple_state.computation ~rows ~cols in
+  let%sub apple2, apple2_inject = Apple_state.computation ~rows ~cols in
   let%sub game_elements =
     let%arr player1 = player1
     and player2 = player2
-    and apple = apple in
+    and apple = apple
+    and apple2 = apple2 in
     { Game_elements.snakes = Player_state.Model.snakes [ player1; player2 ]
-    ; apples = Apple_state.Model.apples [ apple ]
+    ; apples = Apple_state.Model.apples [ apple; apple2 ]
     }
   in
+  let%sub scheduler = chain_scheduler game_elements in
   (* Tick logic *)
   let%sub () =
-    let%sub player1_effect =
-      Bonsai.lazy_
-        (lazy
-          (let%arr player1_inject = player1_inject
-           and game_elements = game_elements in
-           player1_inject (Move game_elements)))
+    let%sub clock_effect =
+      let%arr player1_inject = player1_inject
+      and player2_inject = player2_inject
+      and apple_inject = apple_inject
+      and apple2_inject = apple2_inject
+      and scheduler = scheduler in
+      scheduler
+        [ (fun g -> player1_inject (Move g))
+        ; (fun g -> player2_inject (Move g))
+        ; (fun g -> apple_inject (Tick g))
+        ; (fun g -> apple2_inject (Tick g))
+        ]
     in
-    let%sub player2_effect =
-      Bonsai.lazy_
-        (lazy
-          (let%arr player2_inject = player2_inject
-           and game_elements = game_elements in
-           player2_inject (Move game_elements)))
-    in
-    let%sub apple_effect =
-      Bonsai.lazy_
-        (lazy
-          (let%arr apple_inject = apple_inject
-           and game_elements = game_elements in
-           apple_inject (Tick game_elements)))
-    in
-    let effects =
-      [ player1_effect; player2_effect; apple_effect ]
-      |> Value.all
-      |> Value.map ~f:(fun e -> Effect.Many e)
-    in
-    Bonsai.Clock.every [%here] (Time_ns.Span.of_sec 2.) effects
+    Bonsai.Clock.every [%here] (Time_ns.Span.of_sec 2.) clock_effect
   in
   (* Reset logic *)
   let%sub reset_action =
-    let%sub player1_effect =
-      Bonsai.lazy_
-        (lazy
-          (let%arr player1_inject = player1_inject
-           and game_elements = game_elements in
-           player1_inject (Restart game_elements)))
-    in
-    let%sub player2_effect =
-      Bonsai.lazy_
-        (lazy
-          (let%arr player2_inject = player2_inject
-           and game_elements = game_elements in
-           player2_inject (Restart game_elements)))
-    in
-    let%sub apple_effect =
-      Bonsai.lazy_
-        (lazy
-          (let%arr apple_inject = apple_inject
-           and game_elements = game_elements in
-           apple_inject (Spawn game_elements)))
-    in
-    [ player1_effect; player2_effect; apple_effect ]
-    |> Value.all
-    |> Value.map ~f:(fun e -> Effect.Many e)
-    |> Bonsai.read
+    let%arr player1_inject = player1_inject
+    and player2_inject = player2_inject
+    and apple_inject = apple_inject
+    and scheduler = scheduler in
+    scheduler
+      [ (fun g -> player1_inject (Restart g))
+      ; (fun g -> player2_inject (Restart g))
+      ; (fun g -> apple_inject (Spawn g))
+      (* ; (fun g -> apple2_inject (Spawn g)) *)
+      ]
   in
   (* View component *)
   let%sub board = Board.component ~rows ~cols player1 player2 game_elements in
