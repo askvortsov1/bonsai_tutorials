@@ -27,15 +27,32 @@ let component =
   (* State *)
   let%sub player, player_inject = Player_state.computation ~rows ~cols ~color:"green" in
   let%sub apple, apple_inject = Apple_state.computation ~rows ~cols in
+  let%sub snake_apple =
+    let%arr apple = apple
+    and player = player in
+    let apple_opt =
+      match apple with
+      | Playing apple -> Some apple
+      | Not_started -> None
+    in
+    let snake_opt =
+      match player with
+      | Playing p | Game_over (p, _) -> Some p.snake
+      | Not_started -> None
+    in
+    snake_opt, apple_opt
+  in
+  let%sub scheduler = Chain_incr_effects.component snake_apple in
   (* Tick logic *)
   let%sub () =
     let%sub clock_effect =
       let%arr player_inject = player_inject
-      and apple = apple
-      and apple_inject = apple_inject in
-      match apple with
-      | Playing apple -> player_inject (Move (apple, apple_inject))
-      | Not_started -> Effect.Ignore
+      and apple_inject = apple_inject
+      and scheduler = scheduler in
+      scheduler
+        [ (fun (_s, a) -> player_inject (Move a))
+        ; (fun (s, _a) -> apple_inject (Tick s))
+        ]
     in
     Bonsai.Clock.every [%here] (Time_ns.Span.of_sec 0.25) clock_effect
   in
@@ -43,12 +60,9 @@ let component =
   let%sub reset_action =
     let%arr player_inject = player_inject
     and apple_inject = apple_inject
-    and player = player
-    and apple = apple in
-    let invalid_pos =
-      Player_state.Model.snake_pos player @ Apple_state.Model.apple_pos apple
-    in
-    Effect.Many [ player_inject Restart; apple_inject (Spawn invalid_pos) ]
+    and scheduler = scheduler in
+    scheduler
+      [ (fun _ -> player_inject Restart); (fun (s, _a) -> apple_inject (Spawn s)) ]
   in
   (* View component *)
   let%sub board = Board.component ~rows ~cols player apple in

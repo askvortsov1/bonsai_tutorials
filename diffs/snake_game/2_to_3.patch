@@ -1,5 +1,5 @@
 ==== /src/app.ml ====
--12,64 +12,89
+-12,78 +12,89
   }
   |}]
   
@@ -19,6 +19,20 @@
 -|  let%sub player, player_inject = Player_state.computation ~rows ~cols ~color:"green" in
 +|  let%sub player1, player1_inject = Player_state.computation ~rows ~cols ~color:"green" in
 -|  let%sub apple, apple_inject = Apple_state.computation ~rows ~cols in
+-|  let%sub snake_apple =
+-|    let%arr apple = apple
+-|    and player = player in
+-|    let apple_opt =
+-|      match apple with
+-|      | Playing apple -> Some apple
+-|      | Not_started -> None
+-|    in
+-|    let snake_opt =
+-|      match player with
+-|      | Playing p | Game_over (p, _) -> Some p.snake
+-|      | Not_started -> None
+-|    in
+-|    snake_opt, apple_opt
 +|  let%sub player2, player2_inject = Player_state.computation ~rows ~cols ~color:"blue" in
 +|  let%sub apple1, apple1_inject = Apple_state.computation ~rows ~cols in
 +|  let%sub apple2, apple2_inject = Apple_state.computation ~rows ~cols in
@@ -30,28 +44,30 @@
 +|    { Game_elements.snakes = Player_state.Model.snakes [ player1; player2 ]
 +|    ; apples = Apple_state.Model.apples [ apple1; apple2 ]
 +|    }
+-|  in
+-|  let%sub scheduler = Chain_incr_effects.component snake_apple in
 +|  in
 +|  let%sub scheduler = Chain_incr_effects.component game_elements in
     (* Tick logic *)
     let%sub () =
       let%sub clock_effect =
 -|      let%arr player_inject = player_inject
--|      and apple = apple
--|      and apple_inject = apple_inject in
--|      match apple with
--|      | Playing apple -> player_inject (Move (apple, apple_inject))
--|      | Not_started -> Effect.Ignore
+-|      and apple_inject = apple_inject
 +|      let%arr player1_inject = player1_inject
 +|      and player2_inject = player2_inject
 +|      and apple1_inject = apple1_inject
 +|      and apple2_inject = apple2_inject
+-|      and scheduler = scheduler in
+-|      scheduler
+-|        [ (fun (_s, a) -> player_inject (Move a))
 +|      and scheduler = scheduler in
 +|      scheduler
 +|        [ (fun g -> player1_inject (Move g))
 +|        ; (fun g -> player2_inject (Move g))
+-|        ; (fun (s, _a) -> apple_inject (Tick s))
 +|        ; (fun g -> apple1_inject (Tick g))
 +|        ; (fun g -> apple2_inject (Tick g))
-+|        ]
+          ]
       in
       Bonsai.Clock.every [%here] (Time_ns.Span.of_sec 0.25) clock_effect
     in
@@ -59,16 +75,13 @@
     let%sub reset_action =
 -|    let%arr player_inject = player_inject
 -|    and apple_inject = apple_inject
--|    and player = player
--|    and apple = apple in
--|    let invalid_pos =
--|      Player_state.Model.snake_pos player @ Apple_state.Model.apple_pos apple
--|    in
--|    Effect.Many [ player_inject Restart; apple_inject (Spawn invalid_pos) ]
 +|    let%arr player1_inject = player1_inject
 +|    and player2_inject = player2_inject
 +|    and apple1_inject = apple1_inject
 +|    and apple2_inject = apple2_inject
+-|    and scheduler = scheduler in
+-|    scheduler
+-|      [ (fun _ -> player_inject Restart); (fun (s, _a) -> apple_inject (Spawn s)) ]
 +|    and scheduler = scheduler in
 +|    scheduler
 +|      [ (fun g -> player1_inject (Restart g))
@@ -113,7 +126,7 @@
   ;;
 
 ==== /src/apple_state.ml ====
--1,37 +1,46
+-1,42 +1,46
   open! Core
   open! Bonsai_web
   
@@ -122,44 +135,45 @@
       | Not_started
       | Playing of Apple.t
     [@@deriving sexp, equal]
-  
--|  let apple_pos t =
--|    match t with
--|    | Playing a -> Apple.list_of_t a
++|
 +|  let apples states =
 +|    List.fold states ~init:[] ~f:(fun apples -> function
 +|      | Playing apple -> apple :: apples
--|    | Not_started -> []
 +|      | Not_started -> apples)
-    ;;
++|  ;;
   end
   
   module Action = struct
     type t =
--|    | Spawn of Position.t list
--|    | Eatten of Position.t list
+-|    | Spawn of Snake.t option
 +|    | Spawn of Game_elements.t
+-|    | Tick of Snake.t option
 +|    | Tick of Game_elements.t
     [@@deriving sexp]
   end
   
--|let apply_action ~rows ~cols ~inject:_ ~schedule_event:_ _model action =
+-|let spawn ~rows ~cols snake =
 +|let spawn ~rows ~cols game_elements =
+-|  let invalid_pos = Snake.list_of_t snake in
 +|  let invalid_pos = Game_elements.occupied_pos game_elements in
-+|  Model.Playing (Apple.spawn_random_exn ~rows ~cols ~invalid_pos)
-+|;;
-+|
-+|let apply_action ~rows ~cols ~inject:_ ~schedule_event:_ model action =
--|  match action with
-+|  match action, model with
--|  | Action.Eatten invalid_pos | Spawn invalid_pos ->
--|    Model.Playing (Apple.spawn_random_exn ~rows ~cols ~invalid_pos)
+    Model.Playing (Apple.spawn_random_exn ~rows ~cols ~invalid_pos)
+  ;;
+  
+  let apply_action ~rows ~cols ~inject:_ ~schedule_event:_ model action =
+    match action, model with
+-|  | Action.Spawn None, _ ->
+-|    raise_s [%message "Invalid state: snake should be spawned before apple."]
+-|  | Action.Spawn (Some snake), _ -> spawn ~rows ~cols snake
+-|  | Tick None, Model.Playing _ ->
+-|    raise_s [%message "Invalid state: apple initialized but not snake."]
+-|  | Tick (Some snake), Model.Playing apple ->
+-|    if Snake.is_eatting_apple snake apple then spawn ~rows ~cols snake else model
 +|  | Action.Spawn game_elements, _ -> spawn ~rows ~cols game_elements
 +|  | Tick game_elements, Model.Playing apple ->
 +|    if List.exists game_elements.snakes ~f:(fun s -> Snake.is_eatting_apple s apple)
 +|    then spawn ~rows ~cols game_elements
 +|    else model
-+|  | Tick _, Model.Not_started -> model
+    | Tick _, Model.Not_started -> model
   ;;
   
   let computation ~rows ~cols =
@@ -172,7 +186,7 @@
   ;;
 
 ==== /src/apple_state.mli ====
--1,23 +1,27
+-1,21 +1,27
   open! Core
   open! Bonsai_web
   
@@ -181,8 +195,7 @@
       | Not_started
       | Playing of Apple.t
     [@@deriving sexp, equal]
-  
--|  val apple_pos : t -> Position.t list
++|
 +|  (** [apples states] returns a list of [Apple.t]s  for each apple
 +|    who's status isn't [Not_started].
 +|    Intended to be used in the assembly of [Game_elements.t],
@@ -192,9 +205,9 @@
   
   module Action : sig
     type t =
--|    | Spawn of Position.t list
--|    | Eatten of Position.t list
+-|    | Spawn of Snake.t option
 +|    | Spawn of Game_elements.t
+-|    | Tick of Snake.t option
 +|    | Tick of Game_elements.t
     [@@deriving sexp]
   end
@@ -305,7 +318,8 @@
 +|val occupied_pos : t -> Position.t list
 
 ==== /src/player_state.ml ====
--11,76 +11,79
+-10,72 +10,80
+    end
   
     module Data = struct
       type t =
@@ -321,22 +335,19 @@
       | Playing of Data.t
       | Game_over of (Data.t * End_reason.t)
     [@@deriving sexp, equal, variants]
-  
--|  let snake_pos = function
++|
 +|  let snakes states =
 +|    List.fold states ~init:[] ~f:(fun snakes -> function
--|    | Playing data | Game_over (data, _) -> Snake.list_of_t data.snake
 +|      | Playing data | Game_over (data, _) -> data.snake :: snakes
--|    | Not_started -> []
 +|      | Not_started -> snakes)
-    ;;
++|  ;;
   end
   
   module Action = struct
     type t =
 -|    | Restart
--|    | Move of (Apple.t * (Apple_state.Action.t -> unit Effect.t))
 +|    | Restart of Game_elements.t
+-|    | Move of Apple.t option
 +|    | Move of Game_elements.t
       | Change_direction of Direction.t
     [@@deriving sexp]
@@ -349,19 +360,21 @@
     ~cols
     ~color
     ~inject:_
--|  ~schedule_event
-+|  ~schedule_event:_
+    ~schedule_event:_
     (model : Model.t)
     (action : Action.t)
     =
     match action, model with
 -|  | Restart, _ ->
--|    let snake = Snake.spawn_random_exn ~rows ~cols:(cols / 2) ~color in
 +|  | Restart game_elements, _ ->
 +|    let invalid_pos = Game_elements.occupied_pos game_elements in
+-|    let snake = Snake.spawn_random_exn ~rows ~cols:(cols / 2) ~invalid_pos:[] ~color in
 +|    let snake = Snake.spawn_random_exn ~rows ~cols:(cols / 2) ~color ~invalid_pos in
-      Model.Playing { score = 0; snake; direction = Right }
--|  | Move (apple, apple_inject), Playing data ->
+-|    Model.Playing { score = 0; snake; direction = Right }
+-|  | Move None, Playing _ ->
+-|    raise_s [%message "Invalid state: snake initialized but not apple."]
+-|  | Move (Some apple), Playing data ->
++|    Model.Playing { score = 0; snake; direction = Right }
 +|  | Move game_elements, Playing data ->
       let snake = Snake.move data.snake data.direction in
       if Snake.is_eatting_self snake
@@ -369,23 +382,24 @@
       else if Snake.is_out_of_bounds ~rows ~cols snake
       then Game_over (data, Out_of_bounds)
 -|    else if Snake.is_eatting_apple snake apple
--|    then (
--|      let invalid_pos = Snake.list_of_t snake @ Apple.list_of_t apple in
--|      let () = schedule_event (apple_inject (Apple_state.Action.Eatten invalid_pos)) in
+-|    then
 +|    else (
 +|      let num_apples_eatten =
 +|        game_elements.apples
 +|        |> List.filter ~f:(Snake.is_eatting_apple snake)
 +|        |> List.length
 +|      in
-        Playing
-          { direction = data.direction
+-|      Playing
+-|        { direction = data.direction
 -|        ; snake = Snake.grow_eventually ~by:1 snake
++|      Playing
++|        { direction = data.direction
 +|        ; snake = Snake.grow_eventually ~by:num_apples_eatten snake
 -|        ; score = data.score + ate_apple_score
-+|        ; score = data.score + (num_apples_eatten * ate_apple_score)
-          })
+-|        }
 -|    else Playing { direction = data.direction; snake; score = data.score }
++|        ; score = data.score + (num_apples_eatten * ate_apple_score)
++|        })
     | Change_direction dir, Playing data -> Playing { data with direction = dir }
     | Move _, Not_started
     | Move _, Game_over _
@@ -403,7 +417,8 @@
   ;;
 
 ==== /src/player_state.mli ====
--11,31 +11,34
+-10,30 +10,35
+    end
   
     module Data : sig
       type t =
@@ -419,8 +434,7 @@
       | Playing of Data.t
       | Game_over of (Data.t * End_reason.t)
     [@@deriving sexp, equal, variants]
-  
--|  val snake_pos : t -> Position.t list
++|
 +|  (** [snakes ps] returns a list of snakes for each player who's status isn't
 +|      [Not_started]. Intended to be used in the assembly of [Game_elements.t],
 +|      but can't be located there to avoid circular dependencies. *)
@@ -430,8 +444,8 @@
   module Action : sig
     type t =
 -|    | Restart
--|    | Move of (Apple.t * (Apple_state.Action.t -> unit Effect.t))
 +|    | Restart of Game_elements.t
+-|    | Move of Apple.t option
 +|    | Move of Game_elements.t
       | Change_direction of Direction.t
   end
@@ -441,75 +455,3 @@
     -> cols:int
     -> color:string
     -> (Model.t * (Action.t -> unit Effect.t)) Computation.t
-
-==== /src/snake.ml ====
--1,29 +1,29
-  open! Core
-  
-  type t =
-    { pos : Position.t list
-    ; left_to_grow : int
-    ; color : string
-    }
-  [@@deriving sexp, equal]
-  
-  let list_of_t s = s.pos
-  
--|let spawn_random_exn ~rows ~cols ~color =
-+|let spawn_random_exn ~rows ~cols ~color ~invalid_pos =
--|  let head = Position.random_pos ~rows ~cols ~invalid_pos:[] in
-+|  let head = Position.random_pos ~rows ~cols ~invalid_pos in
-    let head_exn = Option.value_exn head in
-    { pos = [ head_exn ]; left_to_grow = 0; color }
-  ;;
-  
-  let cell_background s pos =
-    if List.mem (list_of_t s) pos ~equal:Position.equal then Some s.color else None
-  ;;
-  
-  let head s = List.hd_exn s.pos
-  
-  let move s dir =
-    let new_head = Position.step (head s) dir in
-    let new_pos =
-      let with_head = new_head :: s.pos in
-      if Int.equal s.left_to_grow 0 then List.drop_last_exn with_head else with_head
-    in
-
-==== /src/snake.mli ====
--1,29 +1,34
-  open! Core
-  
-  (** A [t] represents a snake, which keeps track of how much it
-      has left to grow. *)
-  type t [@@deriving sexp, equal]
-  
-  (** [list_of_t t] returns a list of [Position.t]s occupied by the snake. *)
-  val list_of_t : t -> Position.t list
-  
-  (** [spawn_random_exn ~rows ~cols ~invalid_pos] creates a length-1 snake
-      placed randomly on the left half ([col < cols/2]) of a rows*cols grid.
-      The provided color will be used in calls to [cell_background]. *)
--|val spawn_random_exn : rows:int -> cols:int -> color:string -> t
-+|val spawn_random_exn
-+|  :  rows:int
-+|  -> cols:int
-+|  -> color:string
-+|  -> invalid_pos:Position.t list
-+|  -> t
-  
-  (** [cell_background t pos] computes the background of a cell at [pos], if
-      that cell is occupied by t. Otherwise, it returns [None] *)
-  val cell_background : t -> Position.t -> string option
-  
-  (** [move t dir] moves a snake 1 step in [dir]. It may or may not grow,
-      depending on its internal state. *)
-  val move : t -> Direction.t -> t
-  
-  (** [is_eatting_apple t] returns true iff the snake's head is overlapping
-      with the provided [Apple.t].  *)
-  val is_eatting_apple : t -> Apple.t -> bool
-  
-  (** [is_eatting_self t] returns true iff the snake's head is overlapping with any of
-      the snake's body segments.  *)
-  val is_eatting_self : t -> bool
