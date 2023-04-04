@@ -23,14 +23,12 @@ module Model : sig
     | Playing of Data.t
     | Game_over of (Data.t * End_reason.t)
   [@@deriving sexp, equal, variants]
-
-  val snake_pos : t -> Position.t list
 end
 
 module Action : sig
   type t =
     | Restart
-    | Move of (Apple.t * (Apple_state.Action.t -> unit Effect.t))
+    | Move of Apple.t option
     | Change_direction of Direction.t
 end
 

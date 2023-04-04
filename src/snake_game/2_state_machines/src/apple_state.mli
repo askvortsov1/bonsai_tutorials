@@ -6,14 +6,12 @@ module Model : sig
     | Not_started
     | Playing of Apple.t
   [@@deriving sexp, equal]
-
-  val apple_pos : t -> Position.t list
 end
 
 module Action : sig
   type t =
-    | Spawn of Position.t list
-    | Eatten of Position.t list
+    | Spawn of Snake.t option
+    | Tick of Snake.t option
   [@@deriving sexp]
 end
 

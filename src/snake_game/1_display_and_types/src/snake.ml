@@ -9,8 +9,8 @@ type t =
 
 let list_of_t s = s.pos
 
-let spawn_random_exn ~rows ~cols ~color =
-  let head = Position.random_pos ~rows ~cols ~invalid_pos:[] in
+let spawn_random_exn ~rows ~cols ~invalid_pos ~color =
+  let head = Position.random_pos ~rows ~cols ~invalid_pos in
   let head_exn = Option.value_exn head in
   { pos = [ head_exn ]; left_to_grow = 0; color }
 ;;
