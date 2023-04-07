@@ -90,7 +90,7 @@ how "hello world" in Bonsai works.
 ### Snake and Apple Implementation
 
 - Apple is just a positon
-- Snake is a doubly linked list of positions. This makes moving the snake really simple: just put on a new head, and remove the tail. Growing the snake is also easy: add on the head, but don't remove the tail.
+- Snake is a linked list of positions. This makes moving the snake really simple: just put on a new head, and remove the tail. Growing the snake is also easy: add on the head, but don't remove the tail.
 
 ### Stateful Elements
 
