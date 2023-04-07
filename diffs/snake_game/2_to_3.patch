@@ -1,5 +1,5 @@
 ==== /src/app.ml ====
--12,78 +12,89
+-12,80 +12,93
   }
   |}]
   
@@ -16,10 +16,18 @@
   let component =
     let open Bonsai.Let_syntax in
     (* State *)
--|  let%sub player, player_inject = Player_state.computation ~rows ~cols ~color:"green" in
-+|  let%sub player1, player1_inject = Player_state.computation ~rows ~cols ~color:"green" in
+-|  let%sub player, player_inject =
++|  let%sub player1, player1_inject =
+      Player_state.computation ~rows ~cols ~color:(`Name "green")
+    in
 -|  let%sub apple, apple_inject = Apple_state.computation ~rows ~cols in
++|  let%sub player2, player2_inject =
++|    Player_state.computation ~rows ~cols ~color:(`Name "blue")
++|  in
++|  let%sub apple1, apple1_inject = Apple_state.computation ~rows ~cols in
++|  let%sub apple2, apple2_inject = Apple_state.computation ~rows ~cols in
 -|  let%sub snake_apple =
++|  let%sub game_elements =
 -|    let%arr apple = apple
 -|    and player = player in
 -|    let apple_opt =
@@ -33,10 +41,6 @@
 -|      | Not_started -> None
 -|    in
 -|    snake_opt, apple_opt
-+|  let%sub player2, player2_inject = Player_state.computation ~rows ~cols ~color:"blue" in
-+|  let%sub apple1, apple1_inject = Apple_state.computation ~rows ~cols in
-+|  let%sub apple2, apple2_inject = Apple_state.computation ~rows ~cols in
-+|  let%sub game_elements =
 +|    let%arr player1 = player1
 +|    and player2 = player2
 +|    and apple1 = apple1
@@ -218,9 +222,9 @@
     -> (Model.t * (Action.t -> unit Effect.t)) Computation.t
 
 ==== /src/board.ml ====
--64,45 +64,45
-      | Some x -> x
-      | None -> "white"
+-56,45 +56,45
+    in
+    Vdom.(Node.div (Node.h3 [ Node.text label ] :: content))
   ;;
   
   let set_style_property key value =
@@ -253,25 +257,25 @@
 +|  let%arr player1 = player1
 +|  and player2 = player2
 +|  and game_elements = game_elements in
--|  let cell_bg_driver =
+-|  let cell_style_driver =
 -|    match player, apple with
 -|    | Player_state.Model.Not_started, _ | _, Apple_state.Model.Not_started ->
-+|  let cell_bg_driver =
--|      merge_cell_bg_drivers ~snakes:[] ~apples:[]
++|  let cell_style_driver =
+-|      merge_cell_style_drivers ~snakes:[] ~apples:[]
 -|    | Playing data, Playing apple | Game_over (data, _), Playing apple ->
--|      merge_cell_bg_drivers ~snakes:[ data.snake ] ~apples:[ apple ]
-+|    merge_cell_bg_drivers ~snakes:game_elements.snakes ~apples:game_elements.apples
+-|      merge_cell_style_drivers ~snakes:[ data.snake ] ~apples:[ apple ]
++|    merge_cell_style_drivers ~snakes:game_elements.snakes ~apples:game_elements.apples
     in
     Vdom.(
       Node.div
         [ Node.h1 [ Node.text "Snake Game" ]
-        ; view_instructions
+        ; Node.p [ Node.text "Click anywhere to reset." ]
 -|      ; view_score_status ~label:"Results" player
 +|      ; Node.div
 +|          [ view_score_status ~label:"Player 1" player1
 +|          ; view_score_status ~label:"Player 2" player2
 +|          ]
-        ; view_board rows cols cell_bg_driver
+        ; view_game_grid rows cols cell_style_driver
         ])
   ;;
 
@@ -453,5 +457,5 @@
   val computation
     :  rows:int
     -> cols:int
-    -> color:string
+    -> color:Css_gen.Color.t
     -> (Model.t * (Action.t -> unit Effect.t)) Computation.t
