@@ -1,5 +1,4 @@
 open! Core
-open! Bonsai_web
 
 type t = Position.t [@@deriving sexp, equal]
 
@@ -9,4 +8,6 @@ let spawn_random_exn ~rows ~cols ~invalid_pos =
   Position.random_pos ~rows ~cols ~invalid_pos |> Option.value_exn
 ;;
 
-let cell_background a pos = if Position.equal a pos then Some "red" else None
+let cell_style a pos =
+  if Position.equal a pos then Some (Css_gen.background_color (`Name "red")) else None
+;;

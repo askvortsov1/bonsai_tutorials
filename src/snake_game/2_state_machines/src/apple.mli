@@ -1,5 +1,4 @@
 open! Core
-open! Bonsai_web
 
 (** A [t] represents an apple placed on the grid. *)
 type t [@@deriving sexp, equal]
@@ -11,6 +10,6 @@ val list_of_t : t -> Position.t list
    on a rows*cols grid; excluding cells in ~invalid_pos. *)
 val spawn_random_exn : rows:int -> cols:int -> invalid_pos:Position.t list -> t
 
-(** [cell_background t pos] computes the background of a cell at [pos], if
+(** [cell_style t pos] computes a [Css_gen.t] style for a cell at [pos], if
     that cell is occupied by t. Otherwise, it returns [None] *)
-val cell_background : t -> Position.t -> string option
+val cell_style : t -> Position.t -> Css_gen.t option

@@ -40,5 +40,5 @@ end
 val computation
   :  rows:int
   -> cols:int
-  -> color:string
+  -> color:Css_gen.Color.t
   -> (Model.t * (Action.t -> unit Effect.t)) Computation.t

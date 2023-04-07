@@ -25,8 +25,12 @@ let get_keydown_key evt =
 let component =
   let open Bonsai.Let_syntax in
   (* State *)
-  let%sub player1, player1_inject = Player_state.computation ~rows ~cols ~color:"green" in
-  let%sub player2, player2_inject = Player_state.computation ~rows ~cols ~color:"blue" in
+  let%sub player1, player1_inject =
+    Player_state.computation ~rows ~cols ~color:(`Name "green")
+  in
+  let%sub player2, player2_inject =
+    Player_state.computation ~rows ~cols ~color:(`Name "blue")
+  in
   let%sub apple1, apple1_inject = Apple_state.computation ~rows ~cols in
   let%sub apple2, apple2_inject = Apple_state.computation ~rows ~cols in
   let%sub game_elements =
