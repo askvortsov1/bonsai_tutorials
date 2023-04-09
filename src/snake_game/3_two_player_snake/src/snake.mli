@@ -21,9 +21,12 @@ val spawn_random_exn
     that cell is occupied by t. Otherwise, it returns [None] *)
 val cell_style : t -> Position.t -> Css_gen.t option
 
-(** [move t dir] moves a snake 1 step in [dir]. It may or may not grow,
+(** [move t] moves a snake 1 step in its current direction. It may or may not grow,
     depending on its internal state. *)
-val move : t -> Direction.t -> t
+val move : t -> t
+
+(** [with_direction t dir] returns a [Snake.t] with an updated direction. *)
+val with_direction : t -> Direction.t -> t
 
 (** [is_eatting_apple t] returns true iff the snake's head is overlapping
     with the provided [Apple.t].  *)

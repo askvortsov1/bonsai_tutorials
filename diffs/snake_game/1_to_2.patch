@@ -258,7 +258,7 @@
     -> Vdom.Node.t Computation.t
 
 ==== /src/player_state.ml ====
--1,0 +1,81
+-1,0 +1,80
 +|open! Core
 +|open! Bonsai
 +|
@@ -274,7 +274,6 @@
 +|    type t =
 +|      { score : int
 +|      ; snake : Snake.t
-+|      ; direction : Direction.t
 +|      }
 +|    [@@deriving sexp, equal, fields]
 +|  end
@@ -307,12 +306,12 @@
 +|  =
 +|  match action, model with
 +|  | Restart, _ ->
-+|    let snake = Snake.spawn_random_exn ~rows ~cols:(cols / 2) ~invalid_pos:[] ~color in
-+|    Model.Playing { score = 0; snake; direction = Right }
++|    let snake = Snake.spawn_random_exn ~rows ~cols ~invalid_pos:[] ~color in
++|    Model.Playing { score = 0; snake }
 +|  | Move None, Playing _ ->
 +|    raise_s [%message "Invalid state: snake initialized but not apple."]
 +|  | Move (Some apple), Playing data ->
-+|    let snake = Snake.move data.snake data.direction in
++|    let snake = Snake.move data.snake in
 +|    if Snake.is_eatting_self snake
 +|    then Game_over (data, Ate_self)
 +|    else if Snake.is_out_of_bounds ~rows ~cols snake
@@ -320,12 +319,12 @@
 +|    else if Snake.is_eatting_apple snake apple
 +|    then
 +|      Playing
-+|        { direction = data.direction
-+|        ; snake = Snake.grow_eventually ~by:1 snake
++|        { snake = Snake.grow_eventually ~by:1 snake
 +|        ; score = data.score + ate_apple_score
 +|        }
-+|    else Playing { direction = data.direction; snake; score = data.score }
-+|  | Change_direction dir, Playing data -> Playing { data with direction = dir }
++|    else Playing { snake; score = data.score }
++|  | Change_direction dir, Playing data ->
++|    Playing { data with snake = Snake.with_direction data.snake dir }
 +|  | Move _, Not_started
 +|  | Move _, Game_over _
 +|  | Change_direction _, Not_started
@@ -342,7 +341,7 @@
 +|;;
 
 ==== /src/player_state.mli ====
--1,0 +1,39
+-1,0 +1,38
 +|open! Core
 +|open! Bonsai
 +|
@@ -358,7 +357,6 @@
 +|    type t =
 +|      { score : int
 +|      ; snake : Snake.t
-+|      ; direction : Direction.t
 +|      }
 +|    [@@deriving sexp, equal, fields]
 +|  end
@@ -384,7 +382,7 @@
 +|  -> (Model.t * (Action.t -> unit Effect.t)) Computation.t
 
 ==== /src/snake.ml ====
--1,27 +1,55
+-1,28 +1,57
   open! Core
   
   module Color = struct
@@ -395,6 +393,7 @@
   
   type t =
     { pos : Position.t list
+    ; direction : Direction.t
     ; color : Color.t
 +|  ; left_to_grow : int
     }
@@ -403,10 +402,10 @@
   let list_of_t s = s.pos
   
   let spawn_random_exn ~rows ~cols ~invalid_pos ~color =
-    let head = Position.random_pos ~rows ~cols ~invalid_pos in
+    let head = Position.random_pos ~rows ~cols:(cols / 2) ~invalid_pos in
     let head_exn = Option.value_exn head in
--|  { pos = [ head_exn ]; color }
-+|  { pos = [ head_exn ]; left_to_grow = 0; color }
+-|  { pos = [ head_exn ]; color; direction = Direction.Right }
++|  { pos = [ head_exn ]; direction = Direction.Right; left_to_grow = 0; color }
   ;;
   
   let cell_style s pos =
@@ -417,8 +416,8 @@
 +|
 +|let head s = List.hd_exn s.pos
 +|
-+|let move s dir =
-+|  let new_head = Position.step (head s) dir in
++|let move s =
++|  let new_head = Position.step (head s) s.direction in
 +|  let new_pos =
 +|    let with_head = new_head :: s.pos in
 +|    if Int.equal s.left_to_grow 0 then List.drop_last_exn with_head else with_head
@@ -427,6 +426,7 @@
 +|  { s with left_to_grow; pos = new_pos }
 +|;;
 +|
++|let with_direction s direction = { s with direction }
 +|let grow_eventually ~by s = { s with left_to_grow = s.left_to_grow + by }
 +|
 +|let is_out_of_bounds ~rows ~cols s =
@@ -443,7 +443,7 @@
   ;;
 
 ==== /src/snake.mli ====
--7,16 +7,36
+-7,16 +7,39
   (** [list_of_t t] returns a list of [Position.t]s occupied by the snake. *)
   val list_of_t : t -> Position.t list
   
@@ -461,9 +461,12 @@
       that cell is occupied by t. Otherwise, it returns [None] *)
   val cell_style : t -> Position.t -> Css_gen.t option
 +|
-+|(** [move t dir] moves a snake 1 step in [dir]. It may or may not grow,
++|(** [move t] moves a snake 1 step in its current direction. It may or may not grow,
 +|    depending on its internal state. *)
-+|val move : t -> Direction.t -> t
++|val move : t -> t
++|
++|(** [with_direction t dir] returns a [Snake.t] with an updated direction. *)
++|val with_direction : t -> Direction.t -> t
 +|
 +|(** [is_eatting_apple t] returns true iff the snake's head is overlapping
 +|    with the provided [Apple.t].  *)

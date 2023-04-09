@@ -13,7 +13,6 @@ module Model = struct
     type t =
       { score : int
       ; snake : Snake.t
-      ; direction : Direction.t
       }
     [@@deriving sexp, equal, fields]
   end
@@ -53,10 +52,10 @@ let apply_action
   match action, model with
   | Restart game_elements, _ ->
     let invalid_pos = Game_elements.occupied_pos game_elements in
-    let snake = Snake.spawn_random_exn ~rows ~cols:(cols / 2) ~color ~invalid_pos in
-    Model.Playing { score = 0; snake; direction = Right }
+    let snake = Snake.spawn_random_exn ~rows ~cols ~color ~invalid_pos in
+    Model.Playing { score = 0; snake }
   | Move game_elements, Playing data ->
-    let snake = Snake.move data.snake data.direction in
+    let snake = Snake.move data.snake in
     if Snake.is_eatting_self snake
     then Game_over (data, Ate_self)
     else if Snake.is_out_of_bounds ~rows ~cols snake
@@ -68,11 +67,11 @@ let apply_action
         |> List.length
       in
       Playing
-        { direction = data.direction
-        ; snake = Snake.grow_eventually ~by:num_apples_eatten snake
+        { snake = Snake.grow_eventually ~by:num_apples_eatten snake
         ; score = data.score + (num_apples_eatten * ate_apple_score)
         })
-  | Change_direction dir, Playing data -> Playing { data with direction = dir }
+  | Change_direction dir, Playing data ->
+    Playing { data with snake = Snake.with_direction data.snake dir }
   | Move _, Not_started
   | Move _, Game_over _
   | Change_direction _, Not_started

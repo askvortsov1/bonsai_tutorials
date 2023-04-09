@@ -13,7 +13,6 @@ module Model = struct
     type t =
       { score : int
       ; snake : Snake.t
-      ; direction : Direction.t
       }
     [@@deriving sexp, equal, fields]
   end
@@ -46,12 +45,12 @@ let apply_action
   =
   match action, model with
   | Restart, _ ->
-    let snake = Snake.spawn_random_exn ~rows ~cols:(cols / 2) ~invalid_pos:[] ~color in
-    Model.Playing { score = 0; snake; direction = Right }
+    let snake = Snake.spawn_random_exn ~rows ~cols ~invalid_pos:[] ~color in
+    Model.Playing { score = 0; snake }
   | Move None, Playing _ ->
     raise_s [%message "Invalid state: snake initialized but not apple."]
   | Move (Some apple), Playing data ->
-    let snake = Snake.move data.snake data.direction in
+    let snake = Snake.move data.snake in
     if Snake.is_eatting_self snake
     then Game_over (data, Ate_self)
     else if Snake.is_out_of_bounds ~rows ~cols snake
@@ -59,12 +58,12 @@ let apply_action
     else if Snake.is_eatting_apple snake apple
     then
       Playing
-        { direction = data.direction
-        ; snake = Snake.grow_eventually ~by:1 snake
+        { snake = Snake.grow_eventually ~by:1 snake
         ; score = data.score + ate_apple_score
         }
-    else Playing { direction = data.direction; snake; score = data.score }
-  | Change_direction dir, Playing data -> Playing { data with direction = dir }
+    else Playing { snake; score = data.score }
+  | Change_direction dir, Playing data ->
+    Playing { data with snake = Snake.with_direction data.snake dir }
   | Move _, Not_started
   | Move _, Game_over _
   | Change_direction _, Not_started

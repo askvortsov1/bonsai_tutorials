@@ -8,6 +8,7 @@ end
 
 type t =
   { pos : Position.t list
+  ; direction : Direction.t
   ; color : Color.t
   ; left_to_grow : int
   }
@@ -16,9 +17,9 @@ type t =
 let list_of_t s = s.pos
 
 let spawn_random_exn ~rows ~cols ~invalid_pos ~color =
-  let head = Position.random_pos ~rows ~cols ~invalid_pos in
+  let head = Position.random_pos ~rows ~cols:(cols / 2) ~invalid_pos in
   let head_exn = Option.value_exn head in
-  { pos = [ head_exn ]; left_to_grow = 0; color }
+  { pos = [ head_exn ]; direction = Direction.Right; left_to_grow = 0; color }
 ;;
 
 let cell_style s pos =
@@ -29,8 +30,8 @@ let cell_style s pos =
 
 let head s = List.hd_exn s.pos
 
-let move s dir =
-  let new_head = Position.step (head s) dir in
+let move s =
+  let new_head = Position.step (head s) s.direction in
   let new_pos =
     let with_head = new_head :: s.pos in
     if Int.equal s.left_to_grow 0 then List.drop_last_exn with_head else with_head
@@ -39,6 +40,7 @@ let move s dir =
   { s with left_to_grow; pos = new_pos }
 ;;
 
+let with_direction s direction = { s with direction }
 let grow_eventually ~by s = { s with left_to_grow = s.left_to_grow + by }
 
 let is_out_of_bounds ~rows ~cols s =
