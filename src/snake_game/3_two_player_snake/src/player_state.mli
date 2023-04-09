@@ -13,7 +13,6 @@ module Model : sig
     type t =
       { score : int
       ; snake : Snake.t
-      ; direction : Direction.t
       }
     [@@deriving sexp, equal, fields]
   end

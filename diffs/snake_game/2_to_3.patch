@@ -322,14 +322,14 @@
 +|val occupied_pos : t -> Position.t list
 
 ==== /src/player_state.ml ====
--10,72 +10,80
+-9,72 +9,80
+      [@@deriving sexp, equal]
     end
   
     module Data = struct
       type t =
         { score : int
         ; snake : Snake.t
-        ; direction : Direction.t
         }
       [@@deriving sexp, equal, fields]
     end
@@ -372,15 +372,15 @@
 -|  | Restart, _ ->
 +|  | Restart game_elements, _ ->
 +|    let invalid_pos = Game_elements.occupied_pos game_elements in
--|    let snake = Snake.spawn_random_exn ~rows ~cols:(cols / 2) ~invalid_pos:[] ~color in
-+|    let snake = Snake.spawn_random_exn ~rows ~cols:(cols / 2) ~color ~invalid_pos in
--|    Model.Playing { score = 0; snake; direction = Right }
+-|    let snake = Snake.spawn_random_exn ~rows ~cols ~invalid_pos:[] ~color in
++|    let snake = Snake.spawn_random_exn ~rows ~cols ~color ~invalid_pos in
+-|    Model.Playing { score = 0; snake }
 -|  | Move None, Playing _ ->
 -|    raise_s [%message "Invalid state: snake initialized but not apple."]
 -|  | Move (Some apple), Playing data ->
-+|    Model.Playing { score = 0; snake; direction = Right }
++|    Model.Playing { score = 0; snake }
 +|  | Move game_elements, Playing data ->
-      let snake = Snake.move data.snake data.direction in
+      let snake = Snake.move data.snake in
       if Snake.is_eatting_self snake
       then Game_over (data, Ate_self)
       else if Snake.is_out_of_bounds ~rows ~cols snake
@@ -394,17 +394,16 @@
 +|        |> List.length
 +|      in
 -|      Playing
--|        { direction = data.direction
--|        ; snake = Snake.grow_eventually ~by:1 snake
+-|        { snake = Snake.grow_eventually ~by:1 snake
 +|      Playing
-+|        { direction = data.direction
-+|        ; snake = Snake.grow_eventually ~by:num_apples_eatten snake
++|        { snake = Snake.grow_eventually ~by:num_apples_eatten snake
 -|        ; score = data.score + ate_apple_score
 -|        }
--|    else Playing { direction = data.direction; snake; score = data.score }
+-|    else Playing { snake; score = data.score }
 +|        ; score = data.score + (num_apples_eatten * ate_apple_score)
 +|        })
-    | Change_direction dir, Playing data -> Playing { data with direction = dir }
+    | Change_direction dir, Playing data ->
+      Playing { data with snake = Snake.with_direction data.snake dir }
     | Move _, Not_started
     | Move _, Game_over _
     | Change_direction _, Not_started
@@ -421,14 +420,14 @@
   ;;
 
 ==== /src/player_state.mli ====
--10,30 +10,35
+-9,30 +9,35
+      [@@deriving sexp, equal]
     end
   
     module Data : sig
       type t =
         { score : int
         ; snake : Snake.t
-        ; direction : Direction.t
         }
       [@@deriving sexp, equal, fields]
     end

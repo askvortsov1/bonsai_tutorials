@@ -262,6 +262,14 @@ so they can be used as Bonsai state machine models. But `Css_gen.Color` doesn't
 include an `equal` function. To get around this, we'll create a small module
 that includes `Css_gen.Color`, and defines `equal` in terms of `Css_gen.Color.compare`.
 
+The other thing we should think about is spawning the snake.
+It wouldn't be fun if the snake immediately ran into the wall
+right after the game started.
+To keep this simple, we'll just spawn a one-cell snake on the left side of
+the board (i.e. cols = cols/2), facing right.
+Support for spawning longer snakes with random directions is left as an exercise
+at the end of this chapter.
+
 With all that in mind, create `snake.ml` with the following contents:
 
 <!-- $MDX file=../../src/snake_game/1_display_and_types/src/snake.ml -->
@@ -276,6 +284,7 @@ end
 
 type t =
   { pos : Position.t list
+  ; direction : Direction.t
   ; color : Color.t
   }
 [@@deriving sexp, equal]
@@ -283,9 +292,9 @@ type t =
 let list_of_t s = s.pos
 
 let spawn_random_exn ~rows ~cols ~invalid_pos ~color =
-  let head = Position.random_pos ~rows ~cols ~invalid_pos in
+  let head = Position.random_pos ~rows ~cols:(cols / 2) ~invalid_pos in
   let head_exn = Option.value_exn head in
-  { pos = [ head_exn ]; color }
+  { pos = [ head_exn ]; color; direction = Direction.Right }
 ;;
 
 let cell_style s pos =
