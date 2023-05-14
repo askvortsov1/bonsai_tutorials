@@ -1,6 +1,14 @@
 open! Core
 open! Bonsai
 
+module Action = struct
+  type t =
+    | Restart of Game_elements.t
+    | Move of Game_elements.t
+    | Change_direction of Direction.t
+  [@@deriving sexp]
+end
+
 module Model = struct
   module End_reason = struct
     type t =
@@ -30,16 +38,6 @@ module Model = struct
   ;;
 end
 
-module Action = struct
-  type t =
-    | Restart of Game_elements.t
-    | Move of Game_elements.t
-    | Change_direction of Direction.t
-  [@@deriving sexp]
-end
-
-let ate_apple_score = 1
-
 let apply_action
   ~rows
   ~cols
@@ -55,6 +53,7 @@ let apply_action
     let snake = Snake.spawn_random_exn ~rows ~cols ~color ~invalid_pos in
     Model.Playing { score = 0; snake }
   | Move game_elements, Playing data ->
+    let ate_apple_score = 1 in
     let snake = Snake.move data.snake in
     if Snake.is_eatting_self snake
     then Game_over (data, Ate_self)

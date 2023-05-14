@@ -4,12 +4,12 @@ open! Bonsai_web
 module Model = struct
   type t =
     | Not_started
-    | Playing of Apple.t
+    | Placed of Apple.t
   [@@deriving sexp, equal]
 
   let apples states =
     List.fold states ~init:[] ~f:(fun apples -> function
-      | Playing apple -> apple :: apples
+      | Placed apple -> apple :: apples
       | Not_started -> apples)
   ;;
 end
@@ -23,13 +23,13 @@ end
 
 let spawn ~rows ~cols game_elements =
   let invalid_pos = Game_elements.occupied_pos game_elements in
-  Model.Playing (Apple.spawn_random_exn ~rows ~cols ~invalid_pos)
+  Model.Placed (Apple.spawn_random_exn ~rows ~cols ~invalid_pos)
 ;;
 
 let apply_action ~rows ~cols ~inject:_ ~schedule_event:_ model action =
   match action, model with
   | Action.Spawn game_elements, _ -> spawn ~rows ~cols game_elements
-  | Tick game_elements, Model.Playing apple ->
+  | Tick game_elements, Model.Placed apple ->
     if List.exists game_elements.snakes ~f:(fun s -> Snake.is_eatting_apple s apple)
     then spawn ~rows ~cols game_elements
     else model

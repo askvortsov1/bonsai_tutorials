@@ -1,10 +1,11 @@
+(* $MDX part-begin=model_action *)
 open! Core
 open! Bonsai_web
 
 module Model = struct
   type t =
     | Not_started
-    | Playing of Apple.t
+    | Placed of Apple.t
   [@@deriving sexp, equal]
 end
 
@@ -14,10 +15,12 @@ module Action = struct
     | Tick of Snake.t option
   [@@deriving sexp]
 end
+(* $MDX part-end *)
 
+(* $MDX part-begin=apply_action_spawn *)
 let spawn ~rows ~cols snake =
   let invalid_pos = Snake.list_of_t snake in
-  Model.Playing (Apple.spawn_random_exn ~rows ~cols ~invalid_pos)
+  Model.Placed (Apple.spawn_random_exn ~rows ~cols ~invalid_pos)
 ;;
 
 let apply_action ~rows ~cols ~inject:_ ~schedule_event:_ model action =
@@ -25,13 +28,17 @@ let apply_action ~rows ~cols ~inject:_ ~schedule_event:_ model action =
   | Action.Spawn None, _ ->
     raise_s [%message "Invalid state: snake should be spawned before apple."]
   | Action.Spawn (Some snake), _ -> spawn ~rows ~cols snake
-  | Tick None, Model.Playing _ ->
+  (* $MDX part-end *)
+  (* $MDX part-begin=apply_action_tick *)
+  | Tick None, Model.Placed _ ->
     raise_s [%message "Invalid state: apple initialized but not snake."]
-  | Tick (Some snake), Model.Playing apple ->
+  | Tick (Some snake), Model.Placed apple ->
     if Snake.is_eatting_apple snake apple then spawn ~rows ~cols snake else model
   | Tick _, Model.Not_started -> model
 ;;
+(* $MDX part-end *)
 
+(* $MDX part-begin=computation *)
 let computation ~rows ~cols =
   Bonsai.state_machine0
     [%here]
@@ -40,3 +47,4 @@ let computation ~rows ~cols =
     ~default_model:Not_started
     ~apply_action:(apply_action ~rows ~cols)
 ;;
+(* $MDX part-end *)

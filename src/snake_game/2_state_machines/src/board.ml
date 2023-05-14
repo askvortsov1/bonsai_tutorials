@@ -42,6 +42,7 @@ let view_game_grid rows cols cell_style_driver =
   Vdom.(Node.div ~attr:(Attr.class_ Style.grid) cells)
 ;;
 
+(* $MDX part-begin=score_status *)
 let view_score_status ~label player =
   let content =
     let open Vdom.Node in
@@ -56,6 +57,7 @@ let view_score_status ~label player =
   in
   Vdom.(Node.div (Node.h3 [ Node.text label ] :: content))
 ;;
+(* $MDX part-end *)
 
 let set_style_property key value =
   let open Js_of_ocaml in
@@ -69,6 +71,8 @@ let set_style_property key value =
   ignore res
 ;;
 
+
+(* $MDX part-begin=computation_changes *)
 let component ~rows ~cols player apple =
   let open Bonsai.Let_syntax in
   (* TODO: use `Attr.css_var` instead. *)
@@ -87,7 +91,7 @@ let component ~rows ~cols player apple =
     match player, apple with
     | Player_state.Model.Not_started, _ | _, Apple_state.Model.Not_started ->
       merge_cell_style_drivers ~snakes:[] ~apples:[]
-    | Playing data, Playing apple | Game_over (data, _), Playing apple ->
+    | Playing data, Placed apple | Game_over (data, _), Placed apple ->
       merge_cell_style_drivers ~snakes:[ data.snake ] ~apples:[ apple ]
   in
   Vdom.(
@@ -98,3 +102,4 @@ let component ~rows ~cols player apple =
       ; view_game_grid rows cols cell_style_driver
       ])
 ;;
+(* $MDX part-end *)

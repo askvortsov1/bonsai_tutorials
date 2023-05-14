@@ -322,7 +322,25 @@
 +|val occupied_pos : t -> Position.t list
 
 ==== /src/player_state.ml ====
--9,72 +9,80
+-1,79 +1,87
+  open! Core
+  open! Bonsai
+  
+  module Action = struct
+    type t =
+-|    | Restart
++|    | Restart of Game_elements.t
+-|    | Move of Apple.t option
++|    | Move of Game_elements.t
+      | Change_direction of Direction.t
+    [@@deriving sexp]
+  end
+  
+  module Model = struct
+    module End_reason = struct
+      type t =
+        | Ate_self
+        | Out_of_bounds
       [@@deriving sexp, equal]
     end
   
@@ -347,18 +365,6 @@
 +|  ;;
   end
   
-  module Action = struct
-    type t =
--|    | Restart
-+|    | Restart of Game_elements.t
--|    | Move of Apple.t option
-+|    | Move of Game_elements.t
-      | Change_direction of Direction.t
-    [@@deriving sexp]
-  end
-  
-  let ate_apple_score = 1
-  
   let apply_action
     ~rows
     ~cols
@@ -380,6 +386,7 @@
 -|  | Move (Some apple), Playing data ->
 +|    Model.Playing { score = 0; snake }
 +|  | Move game_elements, Playing data ->
+      let ate_apple_score = 1 in
       let snake = Snake.move data.snake in
       if Snake.is_eatting_self snake
       then Game_over (data, Ate_self)
@@ -420,7 +427,24 @@
   ;;
 
 ==== /src/player_state.mli ====
--9,30 +9,35
+-1,38 +1,43
+  open! Core
+  open! Bonsai
+  
+  module Action : sig
+    type t =
+-|    | Restart
++|    | Restart of Game_elements.t
+-|    | Move of Apple.t option
++|    | Move of Game_elements.t
+      | Change_direction of Direction.t
+  end
+  
+  module Model : sig
+    module End_reason : sig
+      type t =
+        | Ate_self
+        | Out_of_bounds
       [@@deriving sexp, equal]
     end
   
@@ -442,15 +466,6 @@
 +|      [Not_started]. Intended to be used in the assembly of [Game_elements.t],
 +|      but can't be located there to avoid circular dependencies. *)
 +|  val snakes : t list -> Snake.t list
-  end
-  
-  module Action : sig
-    type t =
--|    | Restart
-+|    | Restart of Game_elements.t
--|    | Move of Apple.t option
-+|    | Move of Game_elements.t
-      | Change_direction of Direction.t
   end
   
   val computation

@@ -4,7 +4,7 @@ open! Bonsai_web
 module Model : sig
   type t =
     | Not_started
-    | Playing of Apple.t
+    | Placed of Apple.t
   [@@deriving sexp, equal]
 end
 

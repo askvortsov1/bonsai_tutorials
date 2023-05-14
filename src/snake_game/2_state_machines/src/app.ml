@@ -34,7 +34,7 @@ let component =
     and player = player in
     let apple_opt =
       match apple with
-      | Playing apple -> Some apple
+      | Placed apple -> Some apple
       | Not_started -> None
     in
     let snake_opt =
