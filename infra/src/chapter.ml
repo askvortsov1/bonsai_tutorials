@@ -25,7 +25,8 @@ let clean chapter =
     else
       contents
       |> String.split_lines
-      |> List.filter ~f:(fun l -> not (String.is_prefix ~prefix:mdx_prefix l))
+      |> List.filter ~f:(fun l ->
+           l |> String.lstrip |> String.is_prefix ~prefix:mdx_prefix |> not)
       |> (let extension = Tuple2.get2 (Filename.split_extension path) in
           if Option.mem extension "ml" ~equal:String.equal
           then remove_consecutive_empty_line
