@@ -258,9 +258,17 @@
     -> Vdom.Node.t Computation.t
 
 ==== /src/player_state.ml ====
--1,0 +1,80
+-1,0 +1,79
 +|open! Core
 +|open! Bonsai
++|
++|module Action = struct
++|  type t =
++|    | Restart
++|    | Move of Apple.t option
++|    | Change_direction of Direction.t
++|  [@@deriving sexp]
++|end
 +|
 +|module Model = struct
 +|  module End_reason = struct
@@ -285,16 +293,6 @@
 +|  [@@deriving sexp, equal, variants]
 +|end
 +|
-+|module Action = struct
-+|  type t =
-+|    | Restart
-+|    | Move of Apple.t option
-+|    | Change_direction of Direction.t
-+|  [@@deriving sexp]
-+|end
-+|
-+|let ate_apple_score = 1
-+|
 +|let apply_action
 +|  ~rows
 +|  ~cols
@@ -311,6 +309,7 @@
 +|  | Move None, Playing _ ->
 +|    raise_s [%message "Invalid state: snake initialized but not apple."]
 +|  | Move (Some apple), Playing data ->
++|    let ate_apple_score = 1 in
 +|    let snake = Snake.move data.snake in
 +|    if Snake.is_eatting_self snake
 +|    then Game_over (data, Ate_self)
@@ -345,6 +344,13 @@
 +|open! Core
 +|open! Bonsai
 +|
++|module Action : sig
++|  type t =
++|    | Restart
++|    | Move of Apple.t option
++|    | Change_direction of Direction.t
++|end
++|
 +|module Model : sig
 +|  module End_reason : sig
 +|    type t =
@@ -366,13 +372,6 @@
 +|    | Playing of Data.t
 +|    | Game_over of (Data.t * End_reason.t)
 +|  [@@deriving sexp, equal, variants]
-+|end
-+|
-+|module Action : sig
-+|  type t =
-+|    | Restart
-+|    | Move of Apple.t option
-+|    | Change_direction of Direction.t
 +|end
 +|
 +|val computation

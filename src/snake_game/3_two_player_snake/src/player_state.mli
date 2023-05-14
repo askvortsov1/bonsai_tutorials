@@ -1,6 +1,13 @@
 open! Core
 open! Bonsai
 
+module Action : sig
+  type t =
+    | Restart of Game_elements.t
+    | Move of Game_elements.t
+    | Change_direction of Direction.t
+end
+
 module Model : sig
   module End_reason : sig
     type t =
@@ -27,13 +34,6 @@ module Model : sig
       [Not_started]. Intended to be used in the assembly of [Game_elements.t],
       but can't be located there to avoid circular dependencies. *)
   val snakes : t list -> Snake.t list
-end
-
-module Action : sig
-  type t =
-    | Restart of Game_elements.t
-    | Move of Game_elements.t
-    | Change_direction of Direction.t
 end
 
 val computation

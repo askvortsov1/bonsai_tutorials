@@ -1,6 +1,16 @@
+(* $MDX part-begin=action *)
 open! Core
 open! Bonsai
 
+module Action : sig
+  type t =
+    | Restart
+    | Move of Apple.t option
+    | Change_direction of Direction.t
+end
+(* $MDX part-end *)
+
+(* $MDX part-begin=model *)
 module Model : sig
   module End_reason : sig
     type t =
@@ -23,16 +33,12 @@ module Model : sig
     | Game_over of (Data.t * End_reason.t)
   [@@deriving sexp, equal, variants]
 end
+(* $MDX part-end *)
 
-module Action : sig
-  type t =
-    | Restart
-    | Move of Apple.t option
-    | Change_direction of Direction.t
-end
-
+(* $MDX part-begin=computation *)
 val computation
   :  rows:int
   -> cols:int
   -> color:Css_gen.Color.t
   -> (Model.t * (Action.t -> unit Effect.t)) Computation.t
+(* $MDX part-end *)

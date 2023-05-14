@@ -48,7 +48,7 @@ let is_out_of_bounds ~rows ~cols s =
   row < 0 || row >= rows || col < 0 || col >= cols
 ;;
 
-let is_eatting_apple s a = List.exists (Apple.list_of_t a) ~f:(Position.equal (head s))
+let is_eatting_apple s a = List.mem (Apple.list_of_t a) (head s) ~equal:Position.equal
 
 let is_eatting_self s =
   match list_of_t s with

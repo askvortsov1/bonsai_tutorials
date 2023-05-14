@@ -21,6 +21,8 @@ val spawn_random_exn
     that cell is occupied by t. Otherwise, it returns [None] *)
 val cell_style : t -> Position.t -> Css_gen.t option
 
+(* $MDX part-begin=new_helpers *)
+
 (** [move t] moves a snake 1 step in its current direction. It may or may not grow,
     depending on its internal state. *)
 val move : t -> t
@@ -43,3 +45,4 @@ val is_out_of_bounds : rows:int -> cols:int -> t -> bool
 (** [grow_eventually ~by] updates a snake's internal state to grow 1 cell
     for the next [by] times [move] is called. *)
 val grow_eventually : by:int -> t -> t
+(* $MDX part-end *)
