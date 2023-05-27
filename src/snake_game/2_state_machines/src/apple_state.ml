@@ -36,6 +36,7 @@ let apply_action ~rows ~cols ~inject:_ ~schedule_event:_ model action =
     if Snake.is_eatting_apple snake apple then spawn ~rows ~cols snake else model
   | Tick _, Model.Not_started -> model
 ;;
+
 (* $MDX part-end *)
 
 (* $MDX part-begin=computation *)

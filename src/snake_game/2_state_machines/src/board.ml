@@ -57,6 +57,7 @@ let view_score_status ~label player =
   in
   Vdom.(Node.div (Node.h3 [ Node.text label ] :: content))
 ;;
+
 (* $MDX part-end *)
 
 let set_style_property key value =
@@ -70,7 +71,6 @@ let set_style_property key value =
   in
   ignore res
 ;;
-
 
 (* $MDX part-begin=computation_changes *)
 let component ~rows ~cols player apple =
