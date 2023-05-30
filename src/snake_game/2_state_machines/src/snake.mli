@@ -27,6 +27,9 @@ val cell_style : t -> Position.t -> Css_gen.t option
     depending on its internal state. *)
 val move : t -> t
 
+(** [color t] returns the color of the snake. *)
+val color : t -> Css_gen.Color.t
+
 (** [with_direction t dir] returns a [Snake.t] with an updated direction. *)
 val with_direction : t -> Direction.t -> t
 

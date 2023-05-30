@@ -43,17 +43,17 @@ let view_game_grid rows cols cell_style_driver =
 ;;
 
 (* $MDX part-begin=score_status *)
-let view_score_status ~label player =
+let view_score_status ~label (player : Player_state.Model.t) =
   let content =
     let open Vdom.Node in
     let score_text score = p [ textf "Score: %d" score ] in
-    match player with
-    | Player_state.Model.Not_started -> [ p [ text "Click to start!" ] ]
-    | Playing data -> [ score_text data.score ]
-    | Game_over (data, Out_of_bounds) ->
-      [ p [ text "Game over... Out of bounds!" ]; score_text data.score ]
-    | Game_over (data, Ate_self) ->
-      [ p [ text "Game over... Ate self!" ]; score_text data.score ]
+    match player.status with
+    | Player_state.Model.Status.Not_started -> [ p [ text "Click to start!" ] ]
+    | Playing -> [ score_text player.score ]
+    | Game_over Out_of_bounds ->
+      [ p [ text "Game over... Out of bounds!" ]; score_text player.score ]
+    | Game_over Ate_self ->
+      [ p [ text "Game over... Ate self!" ]; score_text player.score ]
   in
   Vdom.(Node.div (Node.h3 [ Node.text label ] :: content))
 ;;
@@ -73,7 +73,7 @@ let set_style_property key value =
 ;;
 
 (* $MDX part-begin=computation_changes *)
-let component ~rows ~cols player apple =
+let component ~rows ~cols (player : Player_state.Model.t Value.t) apple =
   let open Bonsai.Let_syntax in
   (* TODO: use `Attr.css_var` instead. *)
   let on_activate =
@@ -88,11 +88,7 @@ let component ~rows ~cols player apple =
   let%arr player = player
   and apple = apple in
   let cell_style_driver =
-    match player, apple with
-    | Player_state.Model.Not_started, _ | _, Apple_state.Model.Not_started ->
-      merge_cell_style_drivers ~snakes:[] ~apples:[]
-    | Playing data, Placed apple | Game_over (data, _), Placed apple ->
-      merge_cell_style_drivers ~snakes:[ data.snake ] ~apples:[ apple ]
+    merge_cell_style_drivers ~snakes:[ player.snake ] ~apples:[ apple ]
   in
   Vdom.(
     Node.div

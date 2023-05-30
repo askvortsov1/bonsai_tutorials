@@ -59,8 +59,6 @@ The frontend code is pretty much the same as `todo_list`'s "Hello World" fronten
 See the `todo_list` chapter 0 (specifically the Bonsai part) for a refresher on
 how "hello world" in Bonsai works.
 
-There's also a `lib` folder with some helper functions we'll use in later chapters.
-
 ## Snake Design
 
 Unlike `todo_list`, which is about as straightforward a CRUD app as it gets,

@@ -5,7 +5,7 @@ open! Bonsai
 module Action : sig
   type t =
     | Restart
-    | Move of Apple.t option
+    | Move of Apple.t
     | Change_direction of Direction.t
 end
 (* $MDX part-end *)
@@ -19,19 +19,20 @@ module Model : sig
     [@@deriving sexp, equal]
   end
 
-  module Data : sig
+  module Status : sig
     type t =
-      { score : int
-      ; snake : Snake.t
-      }
-    [@@deriving sexp, equal, fields]
+      | Not_started
+      | Playing
+      | Game_over of End_reason.t
+    [@@deriving sexp, equal, variants]
   end
 
   type t =
-    | Not_started
-    | Playing of Data.t
-    | Game_over of (Data.t * End_reason.t)
-  [@@deriving sexp, equal, variants]
+    { score : int
+    ; snake : Snake.t
+    ; status : Status.t
+    }
+  [@@deriving sexp, equal, fields]
 end
 (* $MDX part-end *)
 
@@ -39,6 +40,6 @@ end
 val computation
   :  rows:int
   -> cols:int
-  -> color:Css_gen.Color.t
+  -> default_snake:Snake.t
   -> (Model.t * (Action.t -> unit Effect.t)) Computation.t
 (* $MDX part-end *)

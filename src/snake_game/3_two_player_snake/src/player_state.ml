@@ -17,25 +17,20 @@ module Model = struct
     [@@deriving sexp, equal]
   end
 
-  module Data = struct
+  module Status = struct
     type t =
-      { score : int
-      ; snake : Snake.t
-      }
-    [@@deriving sexp, equal, fields]
+      | Not_started
+      | Playing
+      | Game_over of End_reason.t
+    [@@deriving sexp, equal, variants]
   end
 
   type t =
-    | Not_started
-    | Playing of Data.t
-    | Game_over of (Data.t * End_reason.t)
-  [@@deriving sexp, equal, variants]
-
-  let snakes states =
-    List.fold states ~init:[] ~f:(fun snakes -> function
-      | Playing data | Game_over (data, _) -> data.snake :: snakes
-      | Not_started -> snakes)
-  ;;
+    { score : int
+    ; snake : Snake.t
+    ; status : Status.t
+    }
+  [@@deriving sexp, equal, fields]
 end
 
 let apply_action
@@ -47,41 +42,41 @@ let apply_action
   (model : Model.t)
   (action : Action.t)
   =
-  match action, model with
+  match action, model.status with
   | Restart game_elements, _ ->
     let invalid_pos = Game_elements.occupied_pos game_elements in
     let snake = Snake.spawn_random_exn ~rows ~cols ~color ~invalid_pos in
-    Model.Playing { score = 0; snake }
-  | Move game_elements, Playing data ->
+    { Model.score = 0; snake; status = Playing }
+  | Move game_elements, Playing ->
     let ate_apple_score = 1 in
-    let snake = Snake.move data.snake in
+    let snake = Snake.move model.snake in
     if Snake.is_eatting_self snake
-    then Game_over (data, Ate_self)
+    then { model with status = Game_over Ate_self }
     else if Snake.is_out_of_bounds ~rows ~cols snake
-    then Game_over (data, Out_of_bounds)
+    then { model with status = Game_over Out_of_bounds }
     else (
       let num_apples_eatten =
         game_elements.apples
         |> List.filter ~f:(Snake.is_eatting_apple snake)
         |> List.length
       in
-      Playing
-        { snake = Snake.grow_eventually ~by:num_apples_eatten snake
-        ; score = data.score + (num_apples_eatten * ate_apple_score)
-        })
-  | Change_direction dir, Playing data ->
-    Playing { data with snake = Snake.with_direction data.snake dir }
+      { model with
+        snake = Snake.grow_eventually ~by:num_apples_eatten snake
+      ; score = model.score + (num_apples_eatten * ate_apple_score)
+      })
+  | Change_direction dir, Playing ->
+    { model with snake = Snake.with_direction model.snake dir }
   | Move _, Not_started
   | Move _, Game_over _
   | Change_direction _, Not_started
   | Change_direction _, Game_over _ -> model
 ;;
 
-let computation ~rows ~cols ~color =
+let computation ~rows ~cols ~default_snake =
   Bonsai.state_machine0
     [%here]
     (module Model)
     (module Action)
-    ~default_model:Not_started
-    ~apply_action:(apply_action ~rows ~cols ~color)
+    ~default_model:{ Model.snake = default_snake; status = Not_started; score = 0 }
+    ~apply_action:(apply_action ~rows ~cols ~color:(Snake.color default_snake))
 ;;

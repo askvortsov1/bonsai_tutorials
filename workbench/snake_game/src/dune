@@ -4,7 +4,6 @@
  (libraries
   async_kernel
   async_js
-  chain_incr_effects
   core_kernel.composition_infix
   core
   bonsai

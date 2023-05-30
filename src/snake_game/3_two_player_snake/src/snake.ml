@@ -40,6 +40,7 @@ let move s =
   { s with left_to_grow; pos = new_pos }
 ;;
 
+let color s = s.color
 let with_direction s direction = { s with direction }
 let grow_eventually ~by s = { s with left_to_grow = s.left_to_grow + by }
 
@@ -53,5 +54,6 @@ let is_eatting_apple s a = List.mem (Apple.list_of_t a) (head s) ~equal:Position
 let is_eatting_self s =
   match list_of_t s with
   | head :: tail -> List.mem tail head ~equal:Position.equal
-  | [] -> false (* This should never happen. *)
+  (* This should never happen. *)
+  | [] -> false
 ;;

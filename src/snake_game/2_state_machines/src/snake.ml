@@ -49,6 +49,8 @@ let move s =
 (* $MDX part-end *)
 
 (* $MDX part-begin=other_impl *)
+
+let color s = s.color
 let with_direction s direction = { s with direction }
 let grow_eventually ~by s = { s with left_to_grow = s.left_to_grow + by }
 

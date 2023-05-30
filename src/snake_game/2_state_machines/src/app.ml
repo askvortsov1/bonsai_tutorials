@@ -1,6 +1,7 @@
 open! Core
 open! Bonsai_web
 
+(* $MDX part-begin=style *)
 module Style =
 [%css.raw
 {|
@@ -11,74 +12,74 @@ html,body{min-height:100%; height:100%;}
   height: 100%;
 }
 |}]
+(* $MDX part-end *)
 
 let rows = 20
 let cols = 20
 
+(* $MDX part-begin=keydown_util *)
 let get_keydown_key evt =
-  evt##.code
+  evt##.key
   |> Js_of_ocaml.Js.Optdef.to_option
   |> Option.value_exn
   |> Js_of_ocaml.Js.to_string
 ;;
 
+(* $MDX part-end *)
+
+(* $MDX part-begin=state *)
 let component =
+  let default_snake =
+    Snake.spawn_random_exn ~rows ~cols ~invalid_pos:[] ~color:(`Name "green")
+  in
+  let default_apple =
+    Apple.spawn_random_exn ~rows ~cols ~invalid_pos:(Snake.list_of_t default_snake)
+  in
   let open Bonsai.Let_syntax in
-  (* State *)
-  let%sub player, player_inject =
-    Player_state.computation ~rows ~cols ~color:(`Name "green")
+  let%sub player, player_inject = Player_state.computation ~rows ~cols ~default_snake in
+  let%sub snake =
+    let%arr player = player in
+    player.snake
   in
-  let%sub apple, apple_inject = Apple_state.computation ~rows ~cols in
-  let%sub snake_apple =
-    let%arr apple = apple
-    and player = player in
-    let apple_opt =
-      match apple with
-      | Placed apple -> Some apple
-      | Not_started -> None
-    in
-    let snake_opt =
-      match player with
-      | Playing p | Game_over (p, _) -> Some p.snake
-      | Not_started -> None
-    in
-    snake_opt, apple_opt
+  let%sub apple, apple_inject =
+    Apple_state.computation ~rows ~cols ~default_apple snake
   in
-  let%sub scheduler = Chain_incr_effects.component snake_apple in
-  (* Tick logic *)
+  (* $MDX part-end *)
+  (* $MDX part-begin=tick *)
   let%sub () =
     let%sub clock_effect =
       let%arr player_inject = player_inject
       and apple_inject = apple_inject
-      and scheduler = scheduler in
-      scheduler
-        [ (fun (_s, a) -> player_inject (Move a))
-        ; (fun (s, _a) -> apple_inject (Tick s))
-        ]
+      and apple = apple in
+      Effect.Many [ player_inject (Move apple); apple_inject Tick ]
     in
     Bonsai.Clock.every [%here] (Time_ns.Span.of_sec 0.25) clock_effect
   in
-  (* Reset logic *)
+  (* $MDX part-end *)
+  (* $MDX part-begin=reset *)
   let%sub reset_action =
     let%arr player_inject = player_inject
-    and apple_inject = apple_inject
-    and scheduler = scheduler in
-    scheduler
-      [ (fun _ -> player_inject Restart); (fun (s, _a) -> apple_inject (Spawn s)) ]
+    and apple_inject = apple_inject in
+    Effect.Many [ player_inject Restart; apple_inject Place ]
   in
-  (* View component *)
+  (* $MDX part-end *)
+  (* $MDX part-begin=on_keydown *)
+  let%sub on_keydown =
+    let%arr player_inject = player_inject in
+    fun evt ->
+      match get_keydown_key evt with
+      | "w" -> player_inject (Change_direction Up)
+      | "s" -> player_inject (Change_direction Down)
+      | "a" -> player_inject (Change_direction Left)
+      | "d" -> player_inject (Change_direction Right)
+      | _ -> Effect.Ignore
+  in
+  (* $MDX part-end *)
+  (* $MDX part-begin=view *)
   let%sub board = Board.component ~rows ~cols player apple in
   let%arr board = board
-  and player_inject = player_inject
+  and on_keydown = on_keydown
   and reset_action = reset_action in
-  let on_keydown evt =
-    match get_keydown_key evt with
-    | "KeyW" -> player_inject (Change_direction Up)
-    | "KeyS" -> player_inject (Change_direction Down)
-    | "KeyA" -> player_inject (Change_direction Left)
-    | "KeyD" -> player_inject (Change_direction Right)
-    | _ -> Effect.Ignore
-  in
   Vdom.(
     Node.div
       ~attr:
@@ -89,3 +90,4 @@ let component =
            ])
       [ board ])
 ;;
+(* $MDX part-end *)

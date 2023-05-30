@@ -2,20 +2,19 @@ open! Core
 open! Bonsai_web
 
 module Model : sig
-  type t =
-    | Not_started
-    | Placed of Apple.t
-  [@@deriving sexp, equal]
+  type t = Apple.t [@@deriving sexp, equal]
 end
 
 module Action : sig
   type t =
-    | Spawn of Snake.t option
-    | Tick of Snake.t option
+    | Place
+    | Tick
   [@@deriving sexp]
 end
 
 val computation
   :  rows:int
   -> cols:int
+  -> default_apple:Model.t
+  -> Snake.t Value.t
   -> (Model.t * (Action.t -> unit Effect.t)) Computation.t

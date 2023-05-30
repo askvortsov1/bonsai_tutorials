@@ -16,6 +16,7 @@ I recommend pairing it with:
 - The official Bonsai documentation on [state](https://bonsai.red/03-state.html).
 - The stateful primitives and helpers listed in the
   [bonsai.mli API reference](https://github.com/janestreet/bonsai/blob/master/src/bonsai.mli)
+- The docs on [effects](https://bonsai.red/05-effect.html)
 
 ## State in Bonsai Intro
 
@@ -47,41 +48,40 @@ This makes big, complex programs much more maintainable, since the state transit
 logic is centralized in one place, and any given implementation could be easily
 swapped out for another.
 
-> **Note** Bonsai *does have* a state setter/getter too; see [`Bonsai.state` in the API reference]().
+> **Note** Bonsai *does have* a state setter/getter too;
+> see [`Bonsai.state` in the API reference](https://bonsai.red/03-state.html#simple-state).
 > It's just that `state_machine0` tends to be a better design pattern,
 > and [avoids some race conditions](https://bonsai.red/03-state.html#state-machine).
+> And that's not the only other state primitive Bonsai provides!
+> See [the mli reference](https://github.com/janestreet/bonsai/blob/master/src/bonsai.mli) for more.
 
-That's all you need to know for now, but I highly recommend reading [the full state docs](https://bonsai.red/03-state.html).
+All of this describes `state_machine0`. The `0` means there are no inputs.
+But our apple depends on the snake!
+It spawns second, so it needs to know which cells are already occupied by the snake.
+It also needs the most up-to-date position of the snake,
+so that it can check if it has been eatten after the snake moves.
+
+To implement that, we'll use `Bonsai.state_machine1`, which takes a `'input Value.t` argument,
+and provides the current `'input` value in its `apply_action` function.
+
+That's all you need to know for now, but I highly recommend reading
+[the full state docs](https://bonsai.red/03-state.html).
 Let's go implement some state machines!
-
-## When, Oh When To Spawn???
-
-Sorry, one more thing. Before we implement anything, we have a little design conundrum:
-should the snake and apple be spawned in when the page loads, or can we wait until the game starts?
-
-Recall that `default_model` has to be a raw `Model.t`; not an incremental `Value.t`,
-or `'a -> Model.t` function. However, there's a dependency between the apple and snake,
-since they **may not** overlap on spawn. So in the former case, we'd need to spawn the `Snake.t` and `Apple.t`
-outside of our state machines, and pass them in for `default_model` and a `Restart` action.
-
-In contrast, if we wait until the game starts, we can have a single `Restart of other_stuff` action,
-which is handled by spawning the snake or apple somewhere not occupied by `other_stuff`.
-As an added benefit, we can also encapsulate the spawning logic in the state machine.
 
 ## Player (Snake) State
 
 Our player state combines a `Snake.t` and `score: int`, and a status, which is either `Not_started`, `Playing`, or `Game_over`.
 
 State machines encourage good design by forcing you to rigorously define all possible "actions", and how they should be handled.
-If we take a step back, there's only really 3 things that happen in a game of Snake:
+If we take a step back, there's only really 3 things that happen in a game of Snake after it starts:
 
-- At the start, or when a "restart" button is pressed, the score is set to 0, and one snake is placed randomly on the screen.
-- A user can change the direction a snake is moving in.
+- When a "restart" button is pressed, the score is set to 0, and the snake is re-placed randomly on the screen.
 - Every *tick*, the snake moves one step forward. If it eats itself or goes out of bounds, the game ends.
   If it eats the apple, it grows, and the apple respawns.
+- A user can change the direction a snake is moving in.
 
-All 3 affect the player, so we'll have corresponding `Restart`, `Move of Apple.t`, and `Change_direction of Direction.t` actions.
-Note that we'll spawn the snake before the apple, so the snake's `Restart` action doesn't need an `Apple.t` dependency.
+All 3 affect the player, so we'll need corresponding `Restart`, `Move of Apple.t`, and `Change_direction of Direction.t` actions.
+Note that we'll spawn the snake before the apple, so the snake's `Restart` action doesn't need an `Apple.t` data argument.
 
 Create `player_state.mli` and add the following type declarations:
 
@@ -93,7 +93,7 @@ open! Bonsai
 module Action : sig
   type t =
     | Restart
-    | Move of Apple.t option
+    | Move of Apple.t
     | Change_direction of Direction.t
 end
 ```
@@ -108,23 +108,18 @@ open! Bonsai
 module Action = struct
   type t =
     | Restart
-    | Move of Apple.t option
+    | Move of Apple.t
     | Change_direction of Direction.t
   [@@deriving sexp]
 end
 ```
-
-Note that we have `Move of Apple.t option`, not `Move of Apple.t`.
-That's the downside to spawning the snake and apple in at runtime:
-we can't use the type system to enforce existence, because existence is not always guarunteeed.
 
 ### Data Model
 
 Let's start by formally defining the data model encapsulated by our player state machine.
 Our player state combines a `Snake.t` and `score: int`, and a status, which is either `Not_started`, `Playing`, or `Game_over`.
 `Not_started` is there because we don't want to start the game before the player is ready.
-As discussed above, the snake shouldn't be spawned until the `Playing` status.
-Additionally, for `Game_over`, we'll want to store an `End_reason`: did the snake eat itself, or run into a wall?
+Also, for `Game_over`, we'll want to store an `End_reason`: did the snake eat itself, or run into a wall?
 
 Add the following signature to `player_state.mli`:
 
@@ -138,19 +133,20 @@ module Model : sig
     [@@deriving sexp, equal]
   end
 
-  module Data : sig
+  module Status : sig
     type t =
-      { score : int
-      ; snake : Snake.t
-      }
-    [@@deriving sexp, equal, fields]
+      | Not_started
+      | Playing
+      | Game_over of End_reason.t
+    [@@deriving sexp, equal, variants]
   end
 
   type t =
-    | Not_started
-    | Playing of Data.t
-    | Game_over of (Data.t * End_reason.t)
-  [@@deriving sexp, equal, variants]
+    { score : int
+    ; snake : Snake.t
+    ; status : Status.t
+    }
+  [@@deriving sexp, equal, fields]
 end
 ```
 
@@ -166,32 +162,27 @@ module Model = struct
     [@@deriving sexp, equal]
   end
 
-  module Data = struct
+  module Status = struct
     type t =
-      { score : int
-      ; snake : Snake.t
-      }
-    [@@deriving sexp, equal, fields]
+      | Not_started
+      | Playing
+      | Game_over of End_reason.t
+    [@@deriving sexp, equal, variants]
   end
 
   type t =
-    | Not_started
-    | Playing of Data.t
-    | Game_over of (Data.t * End_reason.t)
-  [@@deriving sexp, equal, variants]
+    { score : int
+    ; snake : Snake.t
+    ; status : Status.t
+    }
+  [@@deriving sexp, equal, fields]
 end
 ```
-
-Note that Bonsai models can be arbitrarily complex data structures,
-as long as they implement `sexp` and `equal`.
-Generally speaking though, you'll want immutable models,
-so that all possible data changes are rigorously defined in `apply_action`.
-And on that note!
 
 ### Player `apply_action`
 
 We've defined the player state machine's data model, and the actions that should update it.
-Now, it's time to implement the transition function, which updates the model in response to an action.
+Now, it's time to implement the state transition function, which updates the model in response to an action.
 We'll write this one piece at a time.
 
 Start by adding the following to `player_state.ml`:
@@ -207,13 +198,13 @@ let apply_action
   (model : Model.t)
   (action : Action.t)
   =
-  match action, model with
+  match action, model.status with
 ```
 
 `rows`, `cols`, and `color` are extra arguments that we'll pass to `apply_action` through [currying](https://dev.realworldocaml.org/variables-and-functions.html#multi-argument-functions).
 The `inject` and `schedule_event` arguments allow `apply_action` to dispatch other actions.
 Our implementation won't use them.
-The actual implementation of this function is a giant pattern match, since each action/model combo should be handled differently.
+The actual implementation of this function is a giant pattern match, since each action/status combo should be handled differently.
 
 If the action is `Restart`, we'll want to spawn a new snake and reset the score regardless of the current status:
 
@@ -221,48 +212,35 @@ If the action is `Restart`, we'll want to spawn a new snake and reset the score 
 ```ocaml
   | Restart, _ ->
     let snake = Snake.spawn_random_exn ~rows ~cols ~invalid_pos:[] ~color in
-    Model.Playing { score = 0; snake }
+    { Model.score = 0; snake; status = Playing }
 ```
 
 Pretty straightforward.
 Note that `apply_action` doesn't mutate anything; it just computes a new `Model.t`.
 This lets us deal with state in a clean, functional way.
 
-Anyways, let's look at a trickier case: the `Move` action while status is `Playing`:
-
-<!-- $MDX file=../../src/snake_game/2_state_machines/src/player_state.ml,part=apply_move_playing_no_snake -->
-```ocaml
-  | Move None, Playing _ ->
-    raise_s [%message "Invalid state: snake initialized but not apple."]
-```
-
-As mentioned above, because snakes and apples aren't spawned in immediately,
-we have to represent them as options. This allows for an illegal state,
-where one of the entities has spawned, but the other has not.
-This should never happen, so we'll raise an exception if it does.
-
-If the status is valid, and both the snake and apple are present,
+For `Move`, if the status is `Playing`,
 we'll move the snake, and then either end the game, tell the snake to grow next turn,
 or do nothing, depending on where the snake ends up.
 To keep things simple and readable, we'll implement most of this in terms of
-helper functions from `Snake`:
+(soon to be defined) helper functions from `Snake`:
 
 <!-- $MDX file=../../src/snake_game/2_state_machines/src/player_state.ml,part=apply_move_playing_snake -->
 ```ocaml
-  | Move (Some apple), Playing data ->
+  | Move apple, Playing ->
     let ate_apple_score = 1 in
-    let snake = Snake.move data.snake in
+    let snake = Snake.move model.snake in
     if Snake.is_eatting_self snake
-    then Game_over (data, Ate_self)
+    then { model with status = Game_over Ate_self }
     else if Snake.is_out_of_bounds ~rows ~cols snake
-    then Game_over (data, Out_of_bounds)
+    then { model with status = Game_over Out_of_bounds }
     else if Snake.is_eatting_apple snake apple
     then
-      Playing
-        { snake = Snake.grow_eventually ~by:1 snake
-        ; score = data.score + ate_apple_score
-        }
-    else Playing { data with snake }
+      { model with
+        snake = Snake.grow_eventually ~by:1 snake
+      ; score = model.score + ate_apple_score
+      }
+    else { model with snake }
 ```
 
 Note that with this approach, the snake does not tell the apple it has been eatten.
@@ -274,8 +252,8 @@ If the direction is changed while playing, we'll update our snake accordingly:
 
 <!-- $MDX file=../../src/snake_game/2_state_machines/src/player_state.ml,part=apply_change_direction -->
 ```ocaml
-  | Change_direction dir, Playing data ->
-    Playing { data with snake = Snake.with_direction data.snake dir }
+  | Change_direction dir, Playing ->
+    { model with snake = Snake.with_direction model.snake dir }
 ```
 
 There's also some cases where nothing should change.
@@ -303,6 +281,9 @@ Here are their type signatures, which you should add to `snake.mli`:
 (** [move t] moves a snake 1 step in its current direction. It may or may not grow,
     depending on its internal state. *)
 val move : t -> t
+
+(** [color t] returns the color of the snake. *)
+val color : t -> Css_gen.Color.t
 
 (** [with_direction t dir] returns a [Snake.t] with an updated direction. *)
 val with_direction : t -> Direction.t -> t
@@ -379,6 +360,7 @@ The other helpers are very straightforward:
 
 <!-- $MDX file=../../src/snake_game/2_state_machines/src/snake.ml,part=other_impl -->
 ```ocaml
+let color s = s.color
 let with_direction s direction = { s with direction }
 let grow_eventually ~by s = { s with left_to_grow = s.left_to_grow + by }
 
@@ -400,45 +382,60 @@ let is_eatting_self s =
 ### Player State Component
 
 Finally, let's wrap our `Action`, `Model`, and `apply_action` in
-a Bonsai state machine by adding the following to `player_state.ml`:
+a Bonsai state machine.
+
+We've defined [all the parts we need](#state-in-bonsai-intro),
+except for `default_model`.
+This part is tricky, because `default_model` needs to be a raw `Model.t`.
+It can't be a function that computes `Model.t`, or an incremental function.
+`Apple_state`'s `default_value` depends on that of `Player_state`,
+because the apple **may not** spawn on top of the snake.
+This means that we'll need to compute the `default_model`s of Player and Apple
+in some parent component, and pass them in. Add the following to `player_state.ml`:
 
 <!-- $MDX file=../../src/snake_game/2_state_machines/src/player_state.ml,part=computation -->
 ```ocaml
-let computation ~rows ~cols ~color =
+let computation ~rows ~cols ~default_snake =
   Bonsai.state_machine0
     [%here]
     (module Model)
     (module Action)
-    ~default_model:Not_started
-    ~apply_action:(apply_action ~rows ~cols ~color)
+    ~default_model:{ Model.snake = default_snake; status = Not_started; score = 0 }
+    ~apply_action:(apply_action ~rows ~cols ~color:(Snake.color default_snake))
 ;;
 ```
 
-There's also a `state_machine1`, which takes an additional `'a Value.t` input,
-and provides that `'a` to the `apply_action` function.
-And that's not the only state primitive Bonsai provides!
-See [the mli reference](https://github.com/janestreet/bonsai/blob/master/src/bonsai.mli) for more.
+Notice that we use a `Snake.color` helper,
+so that we don't need to pass the color in for both the default state and component definition.
+That's the only helper defined in the previous section that's not used by `apply_action`.
 
-Finally, export it by adding the type signature to `player_state.mli`:
+Then, export it by adding the type signature to `player_state.mli`:
 
 <!-- $MDX file=../../src/snake_game/2_state_machines/src/player_state.mli,part=computation -->
 ```ocaml
 val computation
   :  rows:int
   -> cols:int
-  -> color:Css_gen.Color.t
+  -> default_snake:Snake.t
   -> (Model.t * (Action.t -> unit Effect.t)) Computation.t
 ```
+
+Note that the state machine returns 2 things:
+the current `Model.t`, and an `Action.t -> unit Effect.t` function,
+which can be used to dispatch actions into the state machine.
 
 Congratulations: you've implemented the most complex state machine in Snake!
 
 ## Apple State
 
 The state machine wrapping our `Apple.t` is a lot simpler.
-The only actions are `Spawn of Snake.t option`, which respawns the apple (shocking, I know!),
-and `Tick of Snake.t option`, which respawns the apple if it has been eatten.
-And the model is `Not_started | Placed of Apple.t`.
-Apples can't "lose" the game, so we don't need a `Game_over` status.
+The only actions are `Place`, which respawns the apple somewhere random,
+and `Tick of Snake.t`, which respawns the apple if it has been eatten.
+Apples don't need have a status, so the model is just `Apple.t`.
+
+The biggest difference is that we'll use `state_machine1`,
+so that a `Snake.t Value.t` can be an input.
+It will be an extra argument to the `computation` function.
 
 Create `apple_state.mli` with the following contents:
 
@@ -448,22 +445,21 @@ open! Core
 open! Bonsai_web
 
 module Model : sig
-  type t =
-    | Not_started
-    | Placed of Apple.t
-  [@@deriving sexp, equal]
+  type t = Apple.t [@@deriving sexp, equal]
 end
 
 module Action : sig
   type t =
-    | Spawn of Snake.t option
-    | Tick of Snake.t option
+    | Place
+    | Tick
   [@@deriving sexp]
 end
 
 val computation
   :  rows:int
   -> cols:int
+  -> default_apple:Model.t
+  -> Snake.t Value.t
   -> (Model.t * (Action.t -> unit Effect.t)) Computation.t
 ```
 
@@ -475,51 +471,44 @@ open! Core
 open! Bonsai_web
 
 module Model = struct
-  type t =
-    | Not_started
-    | Placed of Apple.t
-  [@@deriving sexp, equal]
+  type t = Apple.t [@@deriving sexp, equal]
 end
 
 module Action = struct
   type t =
-    | Spawn of Snake.t option
-    | Tick of Snake.t option
+    | Place
+    | Tick
   [@@deriving sexp]
 end
 ```
 
 Once again, we'll implement `apply_action` one step at a time.
-Note that as before, the `Snake.t` argument to these actions is a `Snake.t option`.
-Since the snake spawns before the apple, it not existing should raise an exception.
+Notice that `apply_action` takes an additional `snake` argument,
+which is the up-to-date value of the `Snake.t Value.t` we provided.
 
-Let's start with `Spawn`. Regardless of whether the apple is
-placed or not placed, we'll spawn in a new apple, with the status `Playing`:
+`Place` is simple: we just respawn the apple.
 
 <!-- $MDX file=../../src/snake_game/2_state_machines/src/apple_state.ml,part=apply_action_spawn -->
 ```ocaml
-let spawn ~rows ~cols snake =
-  let invalid_pos = Snake.list_of_t snake in
-  Model.Placed (Apple.spawn_random_exn ~rows ~cols ~invalid_pos)
-;;
-
-let apply_action ~rows ~cols ~inject:_ ~schedule_event:_ model action =
-  match action, model with
-  | Action.Spawn None, _ ->
-    raise_s [%message "Invalid state: snake should be spawned before apple."]
-  | Action.Spawn (Some snake), _ -> spawn ~rows ~cols snake
+let apply_action ~rows ~cols ~inject ~schedule_event snake model action =
+  match action with
+  | Action.Place ->
+    let invalid_pos = Snake.list_of_t snake in
+    Apple.spawn_random_exn ~rows ~cols ~invalid_pos
 ```
 
-On `Tick`, if the apple is `Placed`, we respawn it if it has been eatten.
-Otherwise, nothing happens:
+On `Tick`, if the apple has been eatten, we respawn it by dispatching an `Action.Place`.
+Unlike with `Player_state`'s `apply_action`, we use `inject` to create an `unit Effect.t`,
+and `schedule_event` to dispatch it to the Bonsai event-queue.
+Regardless, we return model.
+Note that the dispatched effect will be executed *after*
+the currently running effect.
 
 <!-- $MDX file=../../src/snake_game/2_state_machines/src/apple_state.ml,part=apply_action_tick -->
 ```ocaml
-  | Tick None, Model.Placed _ ->
-    raise_s [%message "Invalid state: apple initialized but not snake."]
-  | Tick (Some snake), Model.Placed apple ->
-    if Snake.is_eatting_apple snake apple then spawn ~rows ~cols snake else model
-  | Tick _, Model.Not_started -> model
+  | Tick ->
+    if Snake.is_eatting_apple snake model then schedule_event (inject Action.Place);
+    model
 ;;
 ```
 
@@ -530,17 +519,18 @@ Otherwise, nothing happens:
 > force us to pass every apple's `inject` function to the Snake's
 > `Move` action, which gets messy, fast.
 
-And finally, we'll wrap things up in a `Bonsai.state_machine0`:
+And finally, we'll wrap things up in a `Bonsai.state_machine1`:
 
 <!-- $MDX file=../../src/snake_game/2_state_machines/src/apple_state.ml,part=computation -->
 ```ocaml
-let computation ~rows ~cols =
-  Bonsai.state_machine0
+let computation ~rows ~cols ~default_apple snake =
+  Bonsai.state_machine1
     [%here]
     (module Model)
     (module Action)
-    ~default_model:Not_started
+    ~default_model:default_apple
     ~apply_action:(apply_action ~rows ~cols)
+    snake
 ;;
 ```
 
@@ -569,7 +559,7 @@ if both the snake and apple are initialized:
 
 <!-- $MDX file=../../src/snake_game/2_state_machines/src/board.ml,part=computation_changes -->
 ```ocaml
-let component ~rows ~cols player apple =
+let component ~rows ~cols (player : Player_state.Model.t Value.t) apple =
   let open Bonsai.Let_syntax in
   (* TODO: use `Attr.css_var` instead. *)
   let on_activate =
@@ -584,11 +574,7 @@ let component ~rows ~cols player apple =
   let%arr player = player
   and apple = apple in
   let cell_style_driver =
-    match player, apple with
-    | Player_state.Model.Not_started, _ | _, Apple_state.Model.Not_started ->
-      merge_cell_style_drivers ~snakes:[] ~apples:[]
-    | Playing data, Placed apple | Game_over (data, _), Placed apple ->
-      merge_cell_style_drivers ~snakes:[ data.snake ] ~apples:[ apple ]
+    merge_cell_style_drivers ~snakes:[ player.snake ] ~apples:[ apple ]
   in
   Vdom.(
     Node.div
@@ -606,17 +592,17 @@ Add the following code above the `component` function:
 
 <!-- $MDX file=../../src/snake_game/2_state_machines/src/board.ml,part=score_status -->
 ```ocaml
-let view_score_status ~label player =
+let view_score_status ~label (player : Player_state.Model.t) =
   let content =
     let open Vdom.Node in
     let score_text score = p [ textf "Score: %d" score ] in
-    match player with
-    | Player_state.Model.Not_started -> [ p [ text "Click to start!" ] ]
-    | Playing data -> [ score_text data.score ]
-    | Game_over (data, Out_of_bounds) ->
-      [ p [ text "Game over... Out of bounds!" ]; score_text data.score ]
-    | Game_over (data, Ate_self) ->
-      [ p [ text "Game over... Ate self!" ]; score_text data.score ]
+    match player.status with
+    | Player_state.Model.Status.Not_started -> [ p [ text "Click to start!" ] ]
+    | Playing -> [ score_text player.score ]
+    | Game_over Out_of_bounds ->
+      [ p [ text "Game over... Out of bounds!" ]; score_text player.score ]
+    | Game_over Ate_self ->
+      [ p [ text "Game over... Ate self!" ]; score_text player.score ]
   in
   Vdom.(Node.div (Node.h3 [ Node.text label ] :: content))
 ;;
@@ -628,7 +614,222 @@ We've now implemented state machines for the player and apple,
 and updated the board component to display them.
 The last step is composing everything together in `App.component`.
 
+Before we start writing code, let's decide what we want this "coordinating" component to do.
+
+As in the static version from last chapter, we need to create a snake and apple,
+and pass them to `Board.component. For interactivity, we'll also want to:
+
+- Start/restart the game when the player clicks anywhere.
+  We'll do this by dispatching `Restart`/`Place` actions.
+- Change the snake's direction via WASD keypresses.
+  Similarly, this will dispatch a `Change_direction` action.
+
+And of course, every `x` seconds, we'll want to dispatch `Move` and `Tick` actions
+for the snake and apple so that things actually happen.
+
+We'll start by composing in the `Player_state` and `Apple_state` state machines,
+and passing their outputs to `Board.component`.
+As mentioned above, we'll generate `default_model` values externally
+so that they don't overlap, and pass those into the `computation`s.
+
+Change the `component` function in `app.ml` to the following:
+
+<!-- $MDX file=../../src/snake_game/2_state_machines/src/app.ml,part=state -->
+```ocaml
+let component =
+  let default_snake =
+    Snake.spawn_random_exn ~rows ~cols ~invalid_pos:[] ~color:(`Name "green")
+  in
+  let default_apple =
+    Apple.spawn_random_exn ~rows ~cols ~invalid_pos:(Snake.list_of_t default_snake)
+  in
+  let open Bonsai.Let_syntax in
+  let%sub player, player_inject = Player_state.computation ~rows ~cols ~default_snake in
+  let%sub snake =
+    let%arr player = player in
+    player.snake
+  in
+  let%sub apple, apple_inject =
+    Apple_state.computation ~rows ~cols ~default_apple snake
+  in
+```
+
+Note that above, we incrementally map `snake` from `player`,
+and provide that as a dependency to `Apple_state.computation`.
+
+Also, recall that state machines incrementally compute 2 things:
+the `Model.t`, and a `Action.t -> unit Effect.t` function,
+which can be used by other components to dispatch actions into
+the state machine. We call this function `inject`, for, uh,
+[reasons](https://github.com/janestreet/bonsai/pull/30#discussion_r1041679507).
+
+Continuing with the code...
+
+<!-- $MDX file=../../src/snake_game/2_state_machines/src/app.ml,part=view -->
+```ocaml
+  let%sub board = Board.component ~rows ~cols player apple in
+  let%arr board = board
+  and on_keydown = on_keydown
+  and reset_action = reset_action in
+  Vdom.(
+    Node.div
+      ~attr:
+        (Attr.many
+           [ Attr.on_keydown on_keydown
+           ; Attr.on_click (fun _ -> reset_action)
+           ; Attr.class_ Style.app
+           ])
+      [ board ])
+;;
+```
+
+Note that we wrapped the `Board.component` in a div with style `app`.
+We want clicks/keypresses *anywhere* on the page to trigger clicks + keydowns,
+so we'll also add some custom CSS to make this div take up the whole page:
+
+<!-- $MDX file=../../src/snake_game/2_state_machines/src/app.ml,part=style -->
+```ocaml
+module Style =
+[%css.raw
+{|
+html,body{min-height:100%; height:100%;}
+
+.app {
+  width: 100%;
+  height: 100%;
+}
+|}]
+```
+
+Our code won't compile yet, because we still need to implement
+`on_keydown : (Js_of_ocaml.Dom_html.keyboardEvent Js_of_ocaml.Js.t -> unit Ui_effect.t) Value.t`
+and `reset_action : unit Ui_effect.t Value.t`.
+As with all event handlers, these are (or return) `Effect.t`.
+These are scheduled on an event queue, and when executed,
+instruct Bonsai to [update state or perform side effects](https://bonsai.red/05-effect.html).
+
+Let's start with `on_keydown`, which should dispatch `Change_direction` on player,
+because that doesn't involve the snake. First, we need to figure out which key is pressed.
+Depending on that key, dispatch `Change_direction` of some direction, or a no-op.
+
+Add the following util function to the top of the file:
+
+<!-- $MDX file=../../src/snake_game/2_state_machines/src/app.ml,part=keydown_util -->
+```ocaml
+let get_keydown_key evt =
+  evt##.key
+  |> Js_of_ocaml.Js.Optdef.to_option
+  |> Option.value_exn
+  |> Js_of_ocaml.Js.to_string
+;;
+```
+
+This takes a `keyboardEvent Js.t`, which is the `Js_of_ocaml` wrapper around
+a [browser KeyboardEvent](https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent),
+and returns its `key` property as a string.
+Read the [Jsoo docs](https://ocsigen.org/js_of_ocaml/latest/manual/library)
+for more info on how Jsoo syntax and types work.
+
+Back to `component`, right above our board definition, add the following code:
+
+<!-- $MDX file=../../src/snake_game/2_state_machines/src/app.ml,part=on_keydown -->
+```ocaml
+  let%sub on_keydown =
+    let%arr player_inject = player_inject in
+    fun evt ->
+      match get_keydown_key evt with
+      | "w" -> player_inject (Change_direction Up)
+      | "s" -> player_inject (Change_direction Down)
+      | "a" -> player_inject (Change_direction Left)
+      | "d" -> player_inject (Change_direction Right)
+      | _ -> Effect.Ignore
+  in
+```
+
+We create an incremental computation depending on `player_inject` using `let%arr`.
+It produces a function that takes a keydownEvent (`evt`), gets
+the key using our helper, and if the key is `w`, `a`, `s`, or `d`,
+returns `unit Effect.t` that dispatches `Change_direction` to the player.
+Otherwise, it returns the no-op `Effect.Ignore`.
+We use `let%sub` to instantiate `on_keydown` from a `Computation.t` to a `Value.t`.
+
+`reset_action` is even simpler:
+
+<!-- $MDX file=../../src/snake_game/2_state_machines/src/app.ml,part=reset -->
+```ocaml
+  let%sub reset_action =
+    let%arr player_inject = player_inject
+    and apple_inject = apple_inject in
+    Effect.Many [ player_inject Restart; apple_inject Place ]
+  in
+```
+
+We simply use `Effect.Many` to trigger both the player and apple to restart/replace.
+
+Finally, since we want the game to run,
+we need to dispatch `Move`/`Tick` actions on an interval.
+We can do this with [Bonsai.Clock.every](https://github.com/janestreet/bonsai/blob/v0.15/src/bonsai.mli#L433):
+
+<!-- $MDX file=../../src/snake_game/2_state_machines/src/app.ml,part=tick -->
+```ocaml
+  let%sub () =
+    let%sub clock_effect =
+      let%arr player_inject = player_inject
+      and apple_inject = apple_inject
+      and apple = apple in
+      Effect.Many [ player_inject (Move apple); apple_inject Tick ]
+    in
+    Bonsai.Clock.every [%here] (Time_ns.Span.of_sec 0.25) clock_effect
+  in
+```
+
+## Recap
+
+And that's it! Congratulations, you've now built a working version of Snake in Bonsai.
+
+To recap, this chapter, we've:
+
+- Introduced what state machines are.
+- Defined the actions and model structure for the Player and Apple state machines.
+- Implemented `apply_action` functions for Player (no inputs) and Apple (1 input).
+- Built working state machines out of these pieces with `Bonsai.state_machine0` and `Bonsai.state_machine1`.
+- Adapted the board to take `Player_state.Model.t` and `Apple.Model.t`.
+- Composed our new state machines together, computing the `default_model` values externally for a valid initial state.
+- Implemented resetting the game, changing direction, and an interval-based tick in terms of `Effect.t`.
+- Scheduled that interval-based tick with `Bonsai.Clock.every`.
+
+In [the next chapter](./3_two_player_snake.md), we'll showcase the flexibility of Bonsai by adding another snakes,
+and a variable number of apples.
+
 ## Exercises
 
-- Switching direction from left->right, up->down, etc should be a no-op because it's an annoying way to die.
-- Store (and display!) a high score in `Window.localStorage`. You'll need to use `Js_of_ocaml` directly.
+### (Accidential) Sudden Death
+
+Currently, if your snake has length > 1, if you change its direction to the opposite of its current direction,
+the game will end because it will overlap onto itself.
+
+This is annoying, and almost always the result of pressing the wrong key.
+Can you make this better?
+
+<details>
+  <summary>Hint</summary>
+
+   > In `Snake.with_direction`, don't do anything if the new direction
+   > is the opposite (left <> right, up <> down) of the current direction.
+</details>
+
+### High Scores!
+
+A true Snake enthuiast simply must know if they are improving.
+Use [Bonsai.Edge'](https://github.com/janestreet/bonsai/blob/v0.15/src/bonsai.mli#L462)
+and [window.localStorage](https://ocaml.org/p/js_of_ocaml/latest/doc/Js_of_ocaml/Dom_html/class-type-window/index.html#method-localStorage)
+to keep track of the high score.
+
+<details>
+  <summary>Hint</summary>
+
+   > In `App.component`, monitor `player.status` with `Bonsai.Edge.on_change'`.
+   > When the status becomes `Game_over`, use [the Js_of_ocaml ppx](https://ocsigen.org/js_of_ocaml/latest/manual/ppx)
+   > to access [`Js_of_ocaml.Dom_html.window##.localStorage`'s `getItem` and `setItem` methods](https://ocaml.org/p/js_of_ocaml/latest/doc/Js_of_ocaml/Dom_html/class-type-storage/index.html).
+   > Put that in a `Bonsai.Var.t`, which should be passed to `Board.component` and displayed.
+</details>

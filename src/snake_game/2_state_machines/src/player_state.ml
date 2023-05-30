@@ -5,7 +5,7 @@ open! Bonsai
 module Action = struct
   type t =
     | Restart
-    | Move of Apple.t option
+    | Move of Apple.t
     | Change_direction of Direction.t
   [@@deriving sexp]
 end
@@ -20,19 +20,20 @@ module Model = struct
     [@@deriving sexp, equal]
   end
 
-  module Data = struct
+  module Status = struct
     type t =
-      { score : int
-      ; snake : Snake.t
-      }
-    [@@deriving sexp, equal, fields]
+      | Not_started
+      | Playing
+      | Game_over of End_reason.t
+    [@@deriving sexp, equal, variants]
   end
 
   type t =
-    | Not_started
-    | Playing of Data.t
-    | Game_over of (Data.t * End_reason.t)
-  [@@deriving sexp, equal, variants]
+    { score : int
+    ; snake : Snake.t
+    ; status : Status.t
+    }
+  [@@deriving sexp, equal, fields]
 end
 (* $MDX part-end *)
 
@@ -46,36 +47,32 @@ let apply_action
   (model : Model.t)
   (action : Action.t)
   =
-  match action, model with
+  match action, model.status with
   (* $MDX part-end *)
   (* $MDX part-begin=apply_restart *)
   | Restart, _ ->
     let snake = Snake.spawn_random_exn ~rows ~cols ~invalid_pos:[] ~color in
-    Model.Playing { score = 0; snake }
-  (* $MDX part-end *)
-  (* $MDX part-begin=apply_move_playing_no_snake *)
-  | Move None, Playing _ ->
-    raise_s [%message "Invalid state: snake initialized but not apple."]
+    { Model.score = 0; snake; status = Playing }
   (* $MDX part-end *)
   (* $MDX part-begin=apply_move_playing_snake *)
-  | Move (Some apple), Playing data ->
+  | Move apple, Playing ->
     let ate_apple_score = 1 in
-    let snake = Snake.move data.snake in
+    let snake = Snake.move model.snake in
     if Snake.is_eatting_self snake
-    then Game_over (data, Ate_self)
+    then { model with status = Game_over Ate_self }
     else if Snake.is_out_of_bounds ~rows ~cols snake
-    then Game_over (data, Out_of_bounds)
+    then { model with status = Game_over Out_of_bounds }
     else if Snake.is_eatting_apple snake apple
     then
-      Playing
-        { snake = Snake.grow_eventually ~by:1 snake
-        ; score = data.score + ate_apple_score
-        }
-    else Playing { data with snake }
+      { model with
+        snake = Snake.grow_eventually ~by:1 snake
+      ; score = model.score + ate_apple_score
+      }
+    else { model with snake }
   (* $MDX part-end *)
   (* $MDX part-begin=apply_change_direction *)
-  | Change_direction dir, Playing data ->
-    Playing { data with snake = Snake.with_direction data.snake dir }
+  | Change_direction dir, Playing ->
+    { model with snake = Snake.with_direction model.snake dir }
   (* $MDX part-end *)
   (* $MDX part-begin=apply_noop *)
   | Move _, Not_started
@@ -87,12 +84,12 @@ let apply_action
 (* $MDX part-end *)
 
 (* $MDX part-begin=computation *)
-let computation ~rows ~cols ~color =
+let computation ~rows ~cols ~default_snake =
   Bonsai.state_machine0
     [%here]
     (module Model)
     (module Action)
-    ~default_model:Not_started
-    ~apply_action:(apply_action ~rows ~cols ~color)
+    ~default_model:{ Model.snake = default_snake; status = Not_started; score = 0 }
+    ~apply_action:(apply_action ~rows ~cols ~color:(Snake.color default_snake))
 ;;
 (* $MDX part-end *)

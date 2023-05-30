@@ -1,5 +1,0 @@
-(library
- (name chain_incr_effects)
- (libraries core bonsai)
- (preprocess
-  (pps ppx_jane)))

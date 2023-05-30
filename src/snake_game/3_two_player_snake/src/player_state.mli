@@ -16,28 +16,24 @@ module Model : sig
     [@@deriving sexp, equal]
   end
 
-  module Data : sig
+  module Status : sig
     type t =
-      { score : int
-      ; snake : Snake.t
-      }
-    [@@deriving sexp, equal, fields]
+      | Not_started
+      | Playing
+      | Game_over of End_reason.t
+    [@@deriving sexp, equal, variants]
   end
 
   type t =
-    | Not_started
-    | Playing of Data.t
-    | Game_over of (Data.t * End_reason.t)
-  [@@deriving sexp, equal, variants]
-
-  (** [snakes ps] returns a list of snakes for each player who's status isn't
-      [Not_started]. Intended to be used in the assembly of [Game_elements.t],
-      but can't be located there to avoid circular dependencies. *)
-  val snakes : t list -> Snake.t list
+    { score : int
+    ; snake : Snake.t
+    ; status : Status.t
+    }
+  [@@deriving sexp, equal, fields]
 end
 
 val computation
   :  rows:int
   -> cols:int
-  -> color:Css_gen.Color.t
+  -> default_snake:Snake.t
   -> (Model.t * (Action.t -> unit Effect.t)) Computation.t
