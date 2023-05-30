@@ -1,5 +1,14 @@
 ==== /src/app.ml ====
--10,69 +10,116
+-1,78 +1,109
+  open! Core
+  open! Bonsai_web
+  
+  module Style =
+  [%css.raw
+  {|
+  html,body{min-height:100%; height:100%;}
+  
+  .app {
     width: 100%;
     height: 100%;
   }
@@ -7,6 +16,7 @@
   
   let rows = 20
   let cols = 20
++|let num_apples = 5
   
   let get_keydown_key evt =
     evt##.key
@@ -22,28 +32,20 @@
     in
 -|  let default_apple =
 -|    Apple.spawn_random_exn ~rows ~cols ~invalid_pos:(Snake.list_of_t default_snake)
--|  in
 +|  let default_snake2 =
 +|    let invalid_pos = Snake.list_of_t default_snake1 in
-+|    Snake.spawn_random_exn ~rows ~cols ~invalid_pos ~color:(`Name "green")
-+|  in
-+|  let default_apple1 =
-+|    let invalid_pos = Snake.list_of_t default_snake1 @ Snake.list_of_t default_snake2 in
-+|    Apple.spawn_random_exn ~rows ~cols ~invalid_pos
-+|  in
-+|  let default_apple2 =
-+|    let invalid_pos =
-+|      Snake.list_of_t default_snake1
-+|      @ Snake.list_of_t default_snake2
-+|      @ Apple.list_of_t default_apple1
-+|    in
-+|    Apple.spawn_random_exn ~rows ~cols ~invalid_pos
-+|  in
++|    Snake.spawn_random_exn ~rows ~cols ~invalid_pos ~color:(`Name "blue")
+-|  in
 -|  let open Bonsai.Let_syntax in
 -|  let%sub player, player_inject = Player_state.computation ~rows ~cols ~default_snake in
 -|  let%sub snake =
 -|    let%arr player = player in
 -|    player.snake
+-|  in
+-|  let%sub apple, apple_inject =
+-|    Apple_state.computation ~rows ~cols ~default_apple snake
+-|  in
++|  in
 +|  let open Bonsai.Let_syntax in
 +|  let%sub player1, player1_inject =
 +|    Player_state.computation ~rows ~cols ~default_snake:default_snake1
@@ -51,45 +53,39 @@
 +|  let%sub player2, player2_inject =
 +|    Player_state.computation ~rows ~cols ~default_snake:default_snake2
 +|  in
-+|  let%sub apple1, apple1_inject =
-+|    Apple_state.computation ~rows ~cols ~default_apple:default_apple1
--|  in
--|  let%sub apple, apple_inject =
-+|  in
-+|  let%sub apple2, apple2_inject =
--|    Apple_state.computation ~rows ~cols ~default_apple snake
--|  in
-+|    Apple_state.computation ~rows ~cols ~default_apple:default_apple2
++|  let%sub apples, apple_injects =
++|    List.init num_apples ~f:(fun _ -> ())
++|    |> List.fold ~init:([], []) ~f:(fun (apple_acc, invalid_pos) _ ->
++|         let default_apple = Apple.spawn_random_exn ~rows ~cols ~invalid_pos in
++|         let apple_sm = Apple_state.computation ~rows ~cols ~default_apple in
++|         apple_sm :: apple_acc, Apple.list_of_t default_apple @ invalid_pos)
++|    |> Tuple2.get1
++|    |> Computation.all
++|    |> Computation.map ~f:(fun x -> List.map ~f:Tuple2.get1 x, List.map ~f:Tuple2.get2 x)
 +|  in
 +|  let%sub game_elements =
 +|    let%arr player1 = player1
 +|    and player2 = player2
-+|    and apple1 = apple1
-+|    and apple2 = apple2 in
-+|    { Game_elements.snakes = [ player1.snake; player2.snake ]
-+|    ; apples = [ apple1; apple2 ]
-+|    }
++|    and apples = apples in
++|    { Game_elements.snakes = [ player1.snake; player2.snake ]; apples }
 +|  in
 +|  let%sub scheduler = Chain_incr_effects.component game_elements in
 -|  let%sub () =
 -|    let%sub clock_effect =
 -|      let%arr player_inject = player_inject
 -|      and apple_inject = apple_inject
--|      and apple = apple in
--|      Effect.Many [ player_inject (Move apple); apple_inject Tick ]
 +|  let%sub () =
 +|    let%sub clock_effect =
 +|      let%arr player1_inject = player1_inject
 +|      and player2_inject = player2_inject
-+|      and apple1_inject = apple1_inject
-+|      and apple2_inject = apple2_inject
+-|      and apple = apple in
+-|      Effect.Many [ player_inject (Move apple); apple_inject Tick ]
++|      and apple_injects = apple_injects
 +|      and scheduler = scheduler in
 +|      scheduler
-+|        [ (fun g -> player1_inject (Move g))
-+|        ; (fun g -> player2_inject (Move g))
-+|        ; (fun g -> apple1_inject (Tick g))
-+|        ; (fun g -> apple2_inject (Tick g))
-+|        ]
++|        ([ (fun g -> player1_inject (Move g)); (fun g -> player2_inject (Move g)) ]
++|         @ List.map apple_injects ~f:(fun inject game_elements ->
++|             inject (Tick game_elements)))
       in
       Bonsai.Clock.every [%here] (Time_ns.Span.of_sec 0.25) clock_effect
     in
@@ -99,15 +95,12 @@
 -|    Effect.Many [ player_inject Restart; apple_inject Place ]
 +|    let%arr player1_inject = player1_inject
 +|    and player2_inject = player2_inject
-+|    and apple1_inject = apple1_inject
-+|    and apple2_inject = apple2_inject
++|    and apple_injects = apple_injects
 +|    and scheduler = scheduler in
 +|    scheduler
-+|      [ (fun g -> player1_inject (Restart g))
-+|      ; (fun g -> player2_inject (Restart g))
-+|      ; (fun g -> apple1_inject (Place g))
-+|      ; (fun g -> apple2_inject (Place g))
-+|      ]
++|      ([ (fun g -> player1_inject (Restart g)); (fun g -> player2_inject (Restart g)) ]
++|       @ List.map apple_injects ~f:(fun inject game_elements ->
++|           inject (Tick game_elements)))
     in
     let%sub on_keydown =
 -|    let%arr player_inject = player_inject in
@@ -288,53 +281,7 @@
 +|  -> Game_elements.t Value.t
     -> Vdom.Node.t Computation.t
 
-==== /src/dune ====
--1,14 +1,15
-  (executables
-   (names main)
-   (modes js)
-   (libraries
-    async_kernel
-    async_js
-+|  chain_incr_effects
-    core_kernel.composition_infix
-    core
-    bonsai
-    bonsai.web
-    virtual_dom
-    virtual_dom.input_widgets)
-   (preprocess
-    (pps js_of_ocaml-ppx ppx_jane ppx_css)))
-
-==== /src/game_elements.ml ====
--1,0 +1,13
-+|open! Core
-+|
-+|type t =
-+|  { snakes : Snake.t list
-+|  ; apples : Apple.t list
-+|  }
-+|[@@deriving sexp]
-+|
-+|let occupied_pos t =
-+|  let snake_pos = t.snakes |> List.map ~f:Snake.list_of_t |> List.join in
-+|  let apple_pos = t.apples |> List.map ~f:Apple.list_of_t |> List.join in
-+|  snake_pos @ apple_pos
-+|;;
-
-==== /src/game_elements.mli ====
--1,0 +1,9
-+|open! Core
-+|
-+|type t =
-+|  { snakes : Snake.t list
-+|  ; apples : Apple.t list
-+|  }
-+|[@@deriving sexp]
-+|
-+|val occupied_pos : t -> Position.t list
-
-==== /src/lib/chain_incr_effects.ml ====
+==== /src/chain_incr_effects.ml ====
 -1,0 +1,30
 +|open! Core
 +|open Bonsai
@@ -367,7 +314,7 @@
 +|  fun effects -> inject (Action.Run effects)
 +|;;
 
-==== /src/lib/chain_incr_effects.mli ====
+==== /src/chain_incr_effects.mli ====
 -1,0 +1,21
 +|open! Core
 +|open Bonsai
@@ -391,13 +338,33 @@
 +|  :  'a Value.t
 +|  -> (('a -> unit Ui_effect.t) list -> unit Ui_effect.t) Computation.t
 
-==== /src/lib/dune ====
--1,0 +1,5
-+|(library
-+| (name chain_incr_effects)
-+| (libraries core bonsai)
-+| (preprocess
-+|  (pps ppx_jane)))
+==== /src/game_elements.ml ====
+-1,0 +1,13
++|open! Core
++|
++|type t =
++|  { snakes : Snake.t list
++|  ; apples : Apple.t list
++|  }
++|[@@deriving sexp]
++|
++|let occupied_pos t =
++|  let snake_pos = t.snakes |> List.map ~f:Snake.list_of_t |> List.join in
++|  let apple_pos = t.apples |> List.map ~f:Apple.list_of_t |> List.join in
++|  snake_pos @ apple_pos
++|;;
+
+==== /src/game_elements.mli ====
+-1,0 +1,9
++|open! Core
++|
++|type t =
++|  { snakes : Snake.t list
++|  ; apples : Apple.t list
++|  }
++|[@@deriving sexp]
++|
++|val occupied_pos : t -> Position.t list
 
 ==== /src/player_state.ml ====
 -1,23 +1,23
@@ -426,7 +393,7 @@
       type t =
         | Not_started
         | Playing
--30,49 +30,53
+-30,49 +30,55
       ; snake : Snake.t
       ; status : Status.t
       }
@@ -460,19 +427,21 @@
 -|    else if Snake.is_eatting_apple snake apple
 -|    then
 +|    else (
-+|      let num_apples_eatten =
++|      let ate_apple =
 +|        game_elements.apples
 +|        |> List.filter ~f:(Snake.is_eatting_apple snake)
 +|        |> List.length
++|        > 0
++|        |> Bool.to_int
 +|      in
 -|      { model with
 -|        snake = Snake.grow_eventually ~by:1 snake
 +|      { model with
-+|        snake = Snake.grow_eventually ~by:num_apples_eatten snake
++|        snake = Snake.grow_eventually ~by:ate_apple snake
 -|      ; score = model.score + ate_apple_score
 -|      }
 -|    else { model with snake }
-+|      ; score = model.score + (num_apples_eatten * ate_apple_score)
++|      ; score = model.score + (ate_apple * ate_apple_score)
 +|      })
     | Change_direction dir, Playing ->
       { model with snake = Snake.with_direction model.snake dir }

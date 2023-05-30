@@ -55,14 +55,16 @@ let apply_action
     else if Snake.is_out_of_bounds ~rows ~cols snake
     then { model with status = Game_over Out_of_bounds }
     else (
-      let num_apples_eatten =
+      let ate_apple =
         game_elements.apples
         |> List.filter ~f:(Snake.is_eatting_apple snake)
         |> List.length
+        > 0
+        |> Bool.to_int
       in
       { model with
-        snake = Snake.grow_eventually ~by:num_apples_eatten snake
-      ; score = model.score + (num_apples_eatten * ate_apple_score)
+        snake = Snake.grow_eventually ~by:ate_apple snake
+      ; score = model.score + (ate_apple * ate_apple_score)
       })
   | Change_direction dir, Playing ->
     { model with snake = Snake.with_direction model.snake dir }
