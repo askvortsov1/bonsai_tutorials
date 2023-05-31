@@ -464,8 +464,10 @@ let component ~rows ~cols snake apple =
   Vdom.(
     Node.div
       ~attrs:
-        [ Attr.css_var ~name:"grid-rows" (Int.to_string rows)
-        ; Attr.css_var ~name:"grid-cols" (Int.to_string cols)
+        [ Style.Variables.set
+            ~grid_cols:(Int.to_string rows)
+            ~grid_rows:(Int.to_string cols)
+            ()
         ]
       [ Node.h1 [ Node.text "Snake Game" ]
       ; Node.p [ Node.text "Click anywhere to reset." ]
@@ -474,8 +476,9 @@ let component ~rows ~cols snake apple =
 ;;
 ```
 
-We use `Attr.css_var` to set the `--grid-rows` and `--grid-cols` variable
-we used in our style above.
+The functorized `Style` module contains a `Variables.set` function,
+which allows us to safely set the `--grid-rows` and `--grid-cols` variables
+that we used in our css before.
 
 ### Bringing It All Together
 

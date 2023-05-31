@@ -72,8 +72,10 @@ let component ~rows ~cols (player : Player_state.Model.t Value.t) apple =
   Vdom.(
     Node.div
       ~attrs:
-        [ Attr.css_var ~name:"grid-rows" (Int.to_string rows)
-        ; Attr.css_var ~name:"grid-cols" (Int.to_string cols)
+        [ Style.Variables.set
+            ~grid_cols:(Int.to_string rows)
+            ~grid_rows:(Int.to_string cols)
+            ()
         ]
       [ Node.h1 [ Node.text "Snake Game" ]
       ; Node.p [ Node.text "Click anywhere to reset." ]
