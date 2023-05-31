@@ -1,12 +1,14 @@
 open! Core
 open! Bonsai
 
+(* $MDX part-begin=action *)
 module Action : sig
   type t =
     | Restart of Game_elements.t
     | Move of Game_elements.t
     | Change_direction of Direction.t
 end
+(* $MDX part-end *)
 
 module Model : sig
   module End_reason : sig

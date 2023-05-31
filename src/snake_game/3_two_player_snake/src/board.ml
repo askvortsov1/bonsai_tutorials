@@ -69,6 +69,7 @@ let set_style_property key value =
   ignore res
 ;;
 
+(* $MDX part-begin=component *)
 let component ~rows ~cols player1 player2 (game_elements : Game_elements.t Value.t) =
   let open Bonsai.Let_syntax in
   (* TODO: use `Attr.css_var` instead. *)
@@ -98,3 +99,4 @@ let component ~rows ~cols player1 player2 (game_elements : Game_elements.t Value
       ; view_game_grid rows cols cell_style_driver
       ])
 ;;
+(* $MDX part-end *)

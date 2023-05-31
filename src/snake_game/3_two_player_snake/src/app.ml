@@ -12,9 +12,11 @@ html,body{min-height:100%; height:100%;}
 }
 |}]
 
+(* $MDX part-begin=num_apples *)
 let rows = 20
 let cols = 20
 let num_apples = 5
+(* $MDX part-end *)
 
 let get_keydown_key evt =
   evt##.key
@@ -23,8 +25,9 @@ let get_keydown_key evt =
   |> Js_of_ocaml.Js.to_string
 ;;
 
-(* $MDX part-begin=state *)
+(* $MDX part-begin=player_state *)
 let component =
+  let open Bonsai.Let_syntax in
   let default_snake1 =
     Snake.spawn_random_exn ~rows ~cols ~invalid_pos:[] ~color:(`Name "green")
   in
@@ -32,32 +35,37 @@ let component =
     let invalid_pos = Snake.list_of_t default_snake1 in
     Snake.spawn_random_exn ~rows ~cols ~invalid_pos ~color:(`Name "blue")
   in
-  let open Bonsai.Let_syntax in
   let%sub player1, player1_inject =
     Player_state.computation ~rows ~cols ~default_snake:default_snake1
   in
   let%sub player2, player2_inject =
     Player_state.computation ~rows ~cols ~default_snake:default_snake2
   in
+  (* $MDX part-end *)
+  (* $MDX part-begin=apple_state *)
   let%sub apples, apple_injects =
     List.init num_apples ~f:(fun _ -> ())
     |> List.fold ~init:([], []) ~f:(fun (apple_acc, invalid_pos) _ ->
-         let default_apple = Apple.spawn_random_exn ~rows ~cols ~invalid_pos in
-         let apple_sm = Apple_state.computation ~rows ~cols ~default_apple in
-         apple_sm :: apple_acc, Apple.list_of_t default_apple @ invalid_pos)
+         let new_apple = Apple.spawn_random_exn ~rows ~cols ~invalid_pos in
+         let new_apple_sm =
+           Apple_state.computation ~rows ~cols ~default_apple:new_apple
+         in
+         new_apple_sm :: apple_acc, Apple.list_of_t new_apple @ invalid_pos)
     |> Tuple2.get1
     |> Computation.all
     |> Computation.map ~f:(fun x -> List.map ~f:Tuple2.get1 x, List.map ~f:Tuple2.get2 x)
   in
   (* $MDX part-end *)
-  (* $MDX part-begin=scheduler *)
+  (* $MDX part-begin=game_elements *)
   let%sub game_elements =
     let%arr player1 = player1
     and player2 = player2
     and apples = apples in
     { Game_elements.snakes = [ player1.snake; player2.snake ]; apples }
   in
-  let%sub scheduler = Chain_incr_effects.component game_elements in
+  (* $MDX part-end *)
+  (* $MDX part-begin=scheduler *)
+  let%sub scheduler = Chain_incr_effects.scheduler game_elements in
   (* $MDX part-end *)
   (* $MDX part-begin=tick *)
   let%sub () =
@@ -75,7 +83,7 @@ let component =
   in
   (* $MDX part-end *)
   (* $MDX part-begin=reset *)
-  let%sub reset_action =
+  let%sub on_reset =
     let%arr player1_inject = player1_inject
     and player2_inject = player2_inject
     and apple_injects = apple_injects
@@ -103,16 +111,18 @@ let component =
       | _ -> Effect.Ignore
   in
   (* $MDX part-end *)
+  (* $MDX part-begin=board *)
   let%sub board = Board.component ~rows ~cols player1 player2 game_elements in
+  (* $MDX part-end *)
   let%arr board = board
   and on_keydown = on_keydown
-  and reset_action = reset_action in
+  and on_reset = on_reset in
   Vdom.(
     Node.div
       ~attr:
         (Attr.many
            [ Attr.on_keydown on_keydown
-           ; Attr.on_click (fun _ -> reset_action)
+           ; Attr.on_click (fun _ -> on_reset)
            ; Attr.class_ Style.app
            ])
       [ board ])

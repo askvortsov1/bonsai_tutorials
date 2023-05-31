@@ -16,6 +16,6 @@ open Bonsai
     with the state of the world before *any* of them recalculated state.
     
     See [this issue](https://github.com/janestreet/bonsai/issues/33) for more information. *)
-val component
+val scheduler
   :  'a Value.t
   -> (('a -> unit Ui_effect.t) list -> unit Ui_effect.t) Computation.t

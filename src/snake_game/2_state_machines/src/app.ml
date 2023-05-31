@@ -57,7 +57,7 @@ let component =
   in
   (* $MDX part-end *)
   (* $MDX part-begin=reset *)
-  let%sub reset_action =
+  let%sub on_reset =
     let%arr player_inject = player_inject
     and apple_inject = apple_inject in
     Effect.Many [ player_inject Restart; apple_inject Place ]
@@ -79,13 +79,13 @@ let component =
   let%sub board = Board.component ~rows ~cols player apple in
   let%arr board = board
   and on_keydown = on_keydown
-  and reset_action = reset_action in
+  and on_reset = on_reset in
   Vdom.(
     Node.div
       ~attr:
         (Attr.many
            [ Attr.on_keydown on_keydown
-           ; Attr.on_click (fun _ -> reset_action)
+           ; Attr.on_click (fun _ -> on_reset)
            ; Attr.class_ Style.app
            ])
       [ board ])

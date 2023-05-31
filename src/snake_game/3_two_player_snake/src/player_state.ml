@@ -1,6 +1,7 @@
 open! Core
 open! Bonsai
 
+(* $MDX part-begin=action *)
 module Action = struct
   type t =
     | Restart of Game_elements.t
@@ -8,6 +9,7 @@ module Action = struct
     | Change_direction of Direction.t
   [@@deriving sexp]
 end
+(* $MDX part-end *)
 
 module Model = struct
   module End_reason = struct
@@ -43,10 +45,13 @@ let apply_action
   (action : Action.t)
   =
   match action, model.status with
+  (* $MDX part-begin=apply_restart *)
   | Restart game_elements, _ ->
     let invalid_pos = Game_elements.occupied_pos game_elements in
     let snake = Snake.spawn_random_exn ~rows ~cols ~color ~invalid_pos in
     { Model.score = 0; snake; status = Playing }
+    (* $MDX part-end *)
+    (* $MDX part-begin=apply_move *)
   | Move game_elements, Playing ->
     let ate_apple_score = 1 in
     let snake = Snake.move model.snake in
@@ -66,6 +71,7 @@ let apply_action
         snake = Snake.grow_eventually ~by:ate_apple snake
       ; score = model.score + (ate_apple * ate_apple_score)
       })
+    (* $MDX part-end *)
   | Change_direction dir, Playing ->
     { model with snake = Snake.with_direction model.snake dir }
   | Move _, Not_started

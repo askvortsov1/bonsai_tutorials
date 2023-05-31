@@ -670,13 +670,13 @@ Continuing with the code...
   let%sub board = Board.component ~rows ~cols player apple in
   let%arr board = board
   and on_keydown = on_keydown
-  and reset_action = reset_action in
+  and on_reset = on_reset in
   Vdom.(
     Node.div
       ~attr:
         (Attr.many
            [ Attr.on_keydown on_keydown
-           ; Attr.on_click (fun _ -> reset_action)
+           ; Attr.on_click (fun _ -> on_reset)
            ; Attr.class_ Style.app
            ])
       [ board ])
@@ -703,7 +703,7 @@ html,body{min-height:100%; height:100%;}
 
 Our code won't compile yet, because we still need to implement
 `on_keydown : (Js_of_ocaml.Dom_html.keyboardEvent Js_of_ocaml.Js.t -> unit Ui_effect.t) Value.t`
-and `reset_action : unit Ui_effect.t Value.t`.
+and `on_reset : unit Ui_effect.t Value.t`.
 As with all event handlers, these are (or return) `Effect.t`.
 These are scheduled on an event queue, and when executed,
 instruct Bonsai to [update state or perform side effects](https://bonsai.red/05-effect.html).
@@ -753,11 +753,11 @@ returns `unit Effect.t` that dispatches `Change_direction` to the player.
 Otherwise, it returns the no-op `Effect.Ignore`.
 We use `let%sub` to instantiate `on_keydown` from a `Computation.t` to a `Value.t`.
 
-`reset_action` is even simpler:
+`on_reset` is even simpler:
 
 <!-- $MDX file=../../src/snake_game/2_state_machines/src/app.ml,part=reset -->
 ```ocaml
-  let%sub reset_action =
+  let%sub on_reset =
     let%arr player_inject = player_inject
     and apple_inject = apple_inject in
     Effect.Many [ player_inject Restart; apple_inject Place ]
