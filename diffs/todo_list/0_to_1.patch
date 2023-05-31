@@ -47,7 +47,7 @@
 +|val component : tasks:Task.t list Value.t -> Vdom.Node.t Computation.t
 
 ==== /client/create_task.ml ====
--1,0 +1,38
+-1,0 +1,37
 +|open! Core
 +|open! Bonsai_web
 +|
@@ -80,7 +80,6 @@
 +|      [ Node.text "Create Task" ])
 +|;;
 +|
-+|
 +|let view_create_tasks =
 +|  Vdom.(Node.div [ Node.h2 [ Node.text "Create Tasks" ]; view_create_tasks_button ])
 +|;;
@@ -95,7 +94,7 @@
 +|val component : Vdom.Node.t Computation.t
 
 ==== /client/main.ml ====
--1,15 +1,55
+-1,15 +1,53
   open! Core
   open! Async_kernel
   open! Bonsai_web
@@ -138,7 +137,6 @@
 +|    ]
 +|;;
 +|
-+|
   let run () =
     let (_ : _ Start.Handle.t) =
       Start.start
@@ -150,11 +148,10 @@
     return ()
   ;;
   
-  
   let () = don't_wait_for (run ())
 
 ==== /client/task_list.ml ====
--1,0 +1,62
+-1,0 +1,61
 +|open! Core
 +|open! Bonsai_web
 +|open Common
@@ -204,7 +201,6 @@
 +|      ; format_description description
 +|      ])
 +|;;
-+|
 +|
 +|let view_task_list tasks =
 +|  Vdom.(

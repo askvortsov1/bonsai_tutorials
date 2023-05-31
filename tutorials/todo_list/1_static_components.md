@@ -16,6 +16,7 @@ In this chapter, we'll:
 We recommend pairing it with:
 
 - The [Virtual_dom documentation](https://bonsai.red/01-virtual_dom.html)
+- Docs about [the core Value.t and Computation.t types](https://bonsai.red/02-dynamism.html)
 - Bonsai's [guide to CSS and styling](https://bonsai.red/08-css.html)
 
 ## Defining Data Models
@@ -98,7 +99,7 @@ For the bulk of this chapter, we'll:
 
 ### What is a Component?
 
-As mentioned in the [last article](./0_hello_world.md),
+As mentioned in the [last article](./0_hello_world.md#our-hello-world-code),
 
 > Bonsai components are [incremental](https://blog.janestreet.com/introducing-incremental/)
 computations, producing ["virtual" HTML](https://bonsai.red/00-introduction.html#the-underlying-machinery)
@@ -180,7 +181,7 @@ let view_create_tasks =
 let component = Computation.return view_create_tasks
 ```
 
-As with [hello world](./0_hello_world.md), we define a `Vdom.Node.t` instance, and wrap
+As with [hello world](./0_hello_world.md#our-hello-world-code), we define a `Vdom.Node.t` instance, and wrap
 it in a `Computation.t`.
 You'll notice that `view_create_tasks_button` is undefined,
 so let's implement that above `view_create_tasks`:

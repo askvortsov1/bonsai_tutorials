@@ -1,6 +1,6 @@
 open! Core
 
-(** An in-memory representation a directory, and all files that it recursively
+(** An in-memory representation of a directory, and all files that it recursively
     contains. Allows us to cleanly manipulate and modify files
     for tutorials, and only interact with the actual filesystem at the
     start and end.

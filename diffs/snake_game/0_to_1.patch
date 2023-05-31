@@ -1,0 +1,271 @@
+==== /src/app.ml ====
+-1,4 +1,11
+  open! Core
+  open! Bonsai_web
+  
+-|let component = Computation.return (Vdom.Node.text "Hello world!")
++|let rows = 20
++|let cols = 20
++|
++|let component =
++|  let snake = Snake.spawn_random_exn ~rows ~cols ~invalid_pos:[] ~color:(`Name "green") in
++|  let apple = Apple.spawn_random_exn ~rows ~cols ~invalid_pos:(Snake.list_of_t snake) in
++|  Board.component ~rows ~cols (Value.return snake) (Value.return apple)
++|;;
+
+==== /src/apple.ml ====
+-1,0 +1,13
++|open! Core
++|
++|type t = Position.t [@@deriving sexp, equal]
++|
++|let list_of_t t = [ t ]
++|
++|let spawn_random_exn ~rows ~cols ~invalid_pos =
++|  Position.random_pos ~rows ~cols ~invalid_pos |> Option.value_exn
++|;;
++|
++|let cell_style a pos =
++|  if Position.equal a pos then Some (Css_gen.background_color (`Name "red")) else None
++|;;
+
+==== /src/apple.mli ====
+-1,0 +1,15
++|open! Core
++|
++|(** A [t] represents an apple placed on the grid. *)
++|type t [@@deriving sexp, equal]
++|
++|(** [list_of_t t] returns a list of positions occupied by the apple. *)
++|val list_of_t : t -> Position.t list
++|
++|(** [spawn_random_exn ~rows ~cols ~invalid_pos] creates an apple placed randomly
++|   on a rows*cols grid; excluding cells in ~invalid_pos. *)
++|val spawn_random_exn : rows:int -> cols:int -> invalid_pos:Position.t list -> t
++|
++|(** [cell_style t pos] computes a [Css_gen.t] style for a cell at [pos], if
++|    that cell is occupied by t. Otherwise, it returns [None] *)
++|val cell_style : t -> Position.t -> Css_gen.t option
+
+==== /src/board.ml ====
+-1,0 +1,78
++|open! Core
++|open! Bonsai_web
++|
++|module Style =
++|[%css.raw
++|{|
++|.grid {
++|  width: 600px;
++|  height: 600px;
++|  display: grid;
++|  grid-template-rows: repeat(var(--grid-rows), 1fr);
++|  grid-template-columns: repeat(var(--grid-cols), 1fr);
++|  border: 5px solid gray;
++|}
++||}]
++|
++|let empty_cell_style =
++|  Css_gen.(
++|    background_color (`Name "white")
++|    @> border ~width:(`Px 1) ~color:(`Name "gray") ~style:`Solid ())
++|;;
++|
++|let merge_cell_style_drivers ~snakes ~apples =
++|  let drivers =
++|    List.join [ List.map snakes ~f:Snake.cell_style; List.map apples ~f:Apple.cell_style ]
++|  in
++|  fun pos ->
++|    match List.find_map drivers ~f:(fun driver -> driver pos) with
++|    | Some x -> x
++|    | None -> empty_cell_style
++|;;
++|
++|let view_game_grid rows cols cell_style_driver =
++|  let cells =
++|    List.init rows ~f:(fun row ->
++|      List.init cols ~f:(fun col ->
++|        let pos = { Position.row; col } in
++|        let style = cell_style_driver pos in
++|        Vdom.(Node.div ~attr:(Attr.style style) [])))
++|    |> List.concat
++|  in
++|  Vdom.(Node.div ~attr:(Attr.class_ Style.grid) cells)
++|;;
++|
++|let set_style_property key value =
++|  let open Js_of_ocaml in
++|  let priority = Js.undefined in
++|  let res =
++|    Dom_html.document##.documentElement##.style##setProperty
++|      (Js.string key)
++|      (Js.string value)
++|      priority
++|  in
++|  ignore res
++|;;
++|
++|let component ~rows ~cols snake apple =
++|  let open Bonsai.Let_syntax in
++|  (* TODO: use `Attr.css_var` instead. *)
++|  let on_activate =
++|    Ui_effect.of_sync_fun
++|      (fun () ->
++|        set_style_property "--grid-rows" (Int.to_string rows);
++|        set_style_property "--grid-cols" (Int.to_string cols))
++|      ()
++|    |> Value.return
++|  in
++|  let%sub () = Bonsai.Edge.lifecycle ~on_activate () in
++|  let%arr snake = snake
++|  and apple = apple in
++|  let cell_style_driver = merge_cell_style_drivers ~snakes:[ snake ] ~apples:[ apple ] in
++|  Vdom.(
++|    Node.div
++|      [ Node.h1 [ Node.text "Snake Game" ]
++|      ; Node.p [ Node.text "Click anywhere to reset." ]
++|      ; view_game_grid rows cols cell_style_driver
++|      ])
++|;;
+
+==== /src/board.mli ====
+-1,0 +1,9
++|open! Core
++|open! Bonsai_web
++|
++|val component
++|  :  rows:int
++|  -> cols:int
++|  -> Snake.t Value.t
++|  -> Apple.t Value.t
++|  -> Vdom.Node.t Computation.t
+
+==== /src/direction.ml ====
+-1,0 +1,8
++|open! Core
++|
++|type t =
++|  | Up
++|  | Down
++|  | Right
++|  | Left
++|[@@deriving sexp, equal]
+
+==== /src/direction.mli ====
+-1,0 +1,9
++|open! Core
++|
++|(** A [t] represents a direction on the playing board. *)
++|type t =
++|  | Up
++|  | Down
++|  | Right
++|  | Left
++|[@@deriving sexp, equal]
+
+==== /src/position.ml ====
+-1,0 +1,28
++|open! Core
++|
++|type t =
++|  { col : int
++|  ; row : int
++|  }
++|[@@deriving equal, sexp]
++|
++|let step { row; col } dir =
++|  match dir with
++|  | Direction.Left -> { row; col = col - 1 }
++|  | Right -> { row; col = col + 1 }
++|  | Up -> { row = row - 1; col }
++|  | Down -> { row = row + 1; col }
++|;;
++|
++|let random_pos ~rows ~cols ~invalid_pos =
++|  let valid_pos =
++|    List.init rows ~f:(fun row -> List.init cols ~f:(fun col -> { row; col }))
++|    |> List.concat
++|    |> List.filter ~f:(fun x -> not (List.mem ~equal invalid_pos x))
++|  in
++|  if List.is_empty valid_pos
++|  then None
++|  else (
++|    let n = Random.int (List.length valid_pos) in
++|    List.nth valid_pos n)
++|;;
+
+==== /src/position.mli ====
+-1,0 +1,17
++|open! Core
++|
++|(** A [t] represents a square on the playing area, identified by its row and
++|    column. *)
++|type t =
++|  { col : int
++|  ; row : int
++|  }
++|[@@deriving equal, sexp]
++|
++|(** [step t dir] returns the next position after taking a step in
++|    [dir] from [t]. *)
++|val step : t -> Direction.t -> t
++|
++|(** [random_pos ~rows ~cols ~invalid_pos] returns a random [t] with
++|    [t.row < rows] and [t.col < cols], which is not in [invalid_pos]. *)
++|val random_pos : rows:int -> cols:int -> invalid_pos:t list -> t option
+
+==== /src/snake.ml ====
+-1,0 +1,28
++|open! Core
++|
++|module Color = struct
++|  include Css_gen.Color
++|
++|  let equal a b = Css_gen.Color.compare a b |> Int.equal 0
++|end
++|
++|type t =
++|  { pos : Position.t list
++|  ; direction : Direction.t
++|  ; color : Color.t
++|  }
++|[@@deriving sexp, equal]
++|
++|let list_of_t s = s.pos
++|
++|let spawn_random_exn ~rows ~cols ~invalid_pos ~color =
++|  let head = Position.random_pos ~rows ~cols:(cols / 2) ~invalid_pos in
++|  let head_exn = Option.value_exn head in
++|  { pos = [ head_exn ]; color; direction = Direction.Right }
++|;;
++|
++|let cell_style s pos =
++|  if List.mem (list_of_t s) pos ~equal:Position.equal
++|  then Some (Css_gen.background_color s.color)
++|  else None
++|;;
+
+==== /src/snake.mli ====
+-1,0 +1,22
++|open! Core
++|
++|(** A [t] represents a snake, which keeps track of how much it
++|    has left to grow. *)
++|type t [@@deriving sexp, equal]
++|
++|(** [list_of_t t] returns a list of [Position.t]s occupied by the snake. *)
++|val list_of_t : t -> Position.t list
++|
++|(** [spawn_random_exn ~rows ~cols ~invalid_pos ~color] creates a length-1 snake
++|    placed randomly on the left half ([col < cols/2]) of a rows*cols grid.
++|    The provided color will be used in calls to [cell_style]. *)
++|val spawn_random_exn
++|  :  rows:int
++|  -> cols:int
++|  -> invalid_pos:Position.t list
++|  -> color:Css_gen.Color.t
++|  -> t
++|
++|(** [cell_style t pos] computes a [Css_gen.t] style for a cell at [pos], if
++|    that cell is occupied by t. Otherwise, it returns [None] *)
++|val cell_style : t -> Position.t -> Css_gen.t option

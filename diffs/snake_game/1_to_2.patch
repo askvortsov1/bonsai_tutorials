@@ -1,0 +1,463 @@
+==== /src/app.ml ====
+-1,11 +1,78
+  open! Core
+  open! Bonsai_web
+  
++|module Style =
++|[%css.raw
++|{|
++|html,body{min-height:100%; height:100%;}
++|
++|.app {
++|  width: 100%;
++|  height: 100%;
++|}
++||}]
++|
+  let rows = 20
+  let cols = 20
+  
+-|let component =
+-|  let snake = Snake.spawn_random_exn ~rows ~cols ~invalid_pos:[] ~color:(`Name "green") in
+-|  let apple = Apple.spawn_random_exn ~rows ~cols ~invalid_pos:(Snake.list_of_t snake) in
+-|  Board.component ~rows ~cols (Value.return snake) (Value.return apple)
++|let get_keydown_key evt =
++|  evt##.key
++|  |> Js_of_ocaml.Js.Optdef.to_option
++|  |> Option.value_exn
++|  |> Js_of_ocaml.Js.to_string
++|;;
++|
++|let component =
++|  let default_snake =
++|    Snake.spawn_random_exn ~rows ~cols ~invalid_pos:[] ~color:(`Name "green")
++|  in
++|  let default_apple =
++|    Apple.spawn_random_exn ~rows ~cols ~invalid_pos:(Snake.list_of_t default_snake)
++|  in
++|  let open Bonsai.Let_syntax in
++|  let%sub player, player_inject = Player_state.computation ~rows ~cols ~default_snake in
++|  let%sub snake =
++|    let%arr player = player in
++|    player.snake
++|  in
++|  let%sub apple, apple_inject =
++|    Apple_state.computation ~rows ~cols ~default_apple snake
++|  in
++|  let%sub () =
++|    let%sub clock_effect =
++|      let%arr player_inject = player_inject
++|      and apple_inject = apple_inject
++|      and apple = apple in
++|      Effect.Many [ player_inject (Move apple); apple_inject Tick ]
++|    in
++|    Bonsai.Clock.every [%here] (Time_ns.Span.of_sec 0.25) clock_effect
++|  in
++|  let%sub on_reset =
++|    let%arr player_inject = player_inject
++|    and apple_inject = apple_inject in
++|    Effect.Many [ player_inject Restart; apple_inject Place ]
++|  in
++|  let%sub on_keydown =
++|    let%arr player_inject = player_inject in
++|    fun evt ->
++|      match get_keydown_key evt with
++|      | "w" -> player_inject (Change_direction Up)
++|      | "s" -> player_inject (Change_direction Down)
++|      | "a" -> player_inject (Change_direction Left)
++|      | "d" -> player_inject (Change_direction Right)
++|      | _ -> Effect.Ignore
++|  in
++|  let%sub board = Board.component ~rows ~cols player apple in
++|  let%arr board = board
++|  and on_keydown = on_keydown
++|  and on_reset = on_reset in
++|  Vdom.(
++|    Node.div
++|      ~attr:
++|        (Attr.many
++|           [ Attr.on_keydown on_keydown
++|           ; Attr.on_click (fun _ -> on_reset)
++|           ; Attr.class_ Style.app
++|           ])
++|      [ board ])
+  ;;
+
+==== /src/apple_state.ml ====
+-1,0 +1,33
++|open! Core
++|open! Bonsai_web
++|
++|module Model = struct
++|  type t = Apple.t [@@deriving sexp, equal]
++|end
++|
++|module Action = struct
++|  type t =
++|    | Place
++|    | Tick
++|  [@@deriving sexp]
++|end
++|
++|let apply_action ~rows ~cols ~inject ~schedule_event snake model action =
++|  match action with
++|  | Action.Place ->
++|    let invalid_pos = Snake.list_of_t snake in
++|    Apple.spawn_random_exn ~rows ~cols ~invalid_pos
++|  | Tick ->
++|    if Snake.is_eatting_apple snake model then schedule_event (inject Action.Place);
++|    model
++|;;
++|
++|let computation ~rows ~cols ~default_apple snake =
++|  Bonsai.state_machine1
++|    [%here]
++|    (module Model)
++|    (module Action)
++|    ~default_model:default_apple
++|    ~apply_action:(apply_action ~rows ~cols)
++|    snake
++|;;
+
+==== /src/apple_state.mli ====
+-1,0 +1,20
++|open! Core
++|open! Bonsai_web
++|
++|module Model : sig
++|  type t = Apple.t [@@deriving sexp, equal]
++|end
++|
++|module Action : sig
++|  type t =
++|    | Place
++|    | Tick
++|  [@@deriving sexp]
++|end
++|
++|val computation
++|  :  rows:int
++|  -> cols:int
++|  -> default_apple:Model.t
++|  -> Snake.t Value.t
++|  -> (Model.t * (Action.t -> unit Effect.t)) Computation.t
+
+==== /src/board.ml ====
+-29,50 +29,68
+      | Some x -> x
+      | None -> empty_cell_style
+  ;;
+  
+  let view_game_grid rows cols cell_style_driver =
+    let cells =
+      List.init rows ~f:(fun row ->
+        List.init cols ~f:(fun col ->
+          let pos = { Position.row; col } in
+          let style = cell_style_driver pos in
+          Vdom.(Node.div ~attr:(Attr.style style) [])))
+      |> List.concat
+    in
+    Vdom.(Node.div ~attr:(Attr.class_ Style.grid) cells)
+  ;;
+  
++|let view_score_status ~label (player : Player_state.Model.t) =
++|  let content =
++|    let open Vdom.Node in
++|    let score_text score = p [ textf "Score: %d" score ] in
++|    match player.status with
++|    | Player_state.Model.Status.Not_started -> [ p [ text "Click to start!" ] ]
++|    | Playing -> [ score_text player.score ]
++|    | Game_over Out_of_bounds ->
++|      [ p [ text "Game over... Out of bounds!" ]; score_text player.score ]
++|    | Game_over Ate_self ->
++|      [ p [ text "Game over... Ate self!" ]; score_text player.score ]
++|  in
++|  Vdom.(Node.div (Node.h3 [ Node.text label ] :: content))
++|;;
++|
+  let set_style_property key value =
+    let open Js_of_ocaml in
+    let priority = Js.undefined in
+    let res =
+      Dom_html.document##.documentElement##.style##setProperty
+        (Js.string key)
+        (Js.string value)
+        priority
+    in
+    ignore res
+  ;;
+  
+-|let component ~rows ~cols snake apple =
++|let component ~rows ~cols (player : Player_state.Model.t Value.t) apple =
+    let open Bonsai.Let_syntax in
+    (* TODO: use `Attr.css_var` instead. *)
+    let on_activate =
+      Ui_effect.of_sync_fun
+        (fun () ->
+          set_style_property "--grid-rows" (Int.to_string rows);
+          set_style_property "--grid-cols" (Int.to_string cols))
+        ()
+      |> Value.return
+    in
+    let%sub () = Bonsai.Edge.lifecycle ~on_activate () in
+-|  let%arr snake = snake
++|  let%arr player = player
+    and apple = apple in
+-|  let cell_style_driver = merge_cell_style_drivers ~snakes:[ snake ] ~apples:[ apple ] in
++|  let cell_style_driver =
++|    merge_cell_style_drivers ~snakes:[ player.snake ] ~apples:[ apple ]
++|  in
+    Vdom.(
+      Node.div
+        [ Node.h1 [ Node.text "Snake Game" ]
+        ; Node.p [ Node.text "Click anywhere to reset." ]
++|      ; view_score_status ~label:"Results" player
+        ; view_game_grid rows cols cell_style_driver
+        ])
+  ;;
+
+==== /src/board.mli ====
+-1,9 +1,9
+  open! Core
+  open! Bonsai_web
+  
+  val component
+    :  rows:int
+    -> cols:int
+-|  -> Snake.t Value.t
++|  -> Player_state.Model.t Value.t
+-|  -> Apple.t Value.t
++|  -> Apple_state.Model.t Value.t
+    -> Vdom.Node.t Computation.t
+
+==== /src/player_state.ml ====
+-1,0 +1,78
++|open! Core
++|open! Bonsai
++|
++|module Action = struct
++|  type t =
++|    | Restart
++|    | Move of Apple.t
++|    | Change_direction of Direction.t
++|  [@@deriving sexp]
++|end
++|
++|module Model = struct
++|  module End_reason = struct
++|    type t =
++|      | Ate_self
++|      | Out_of_bounds
++|    [@@deriving sexp, equal]
++|  end
++|
++|  module Status = struct
++|    type t =
++|      | Not_started
++|      | Playing
++|      | Game_over of End_reason.t
++|    [@@deriving sexp, equal, variants]
++|  end
++|
++|  type t =
++|    { score : int
++|    ; snake : Snake.t
++|    ; status : Status.t
++|    }
++|  [@@deriving sexp, equal, fields]
++|end
++|
++|let apply_action
++|  ~rows
++|  ~cols
++|  ~color
++|  ~inject:_
++|  ~schedule_event:_
++|  (model : Model.t)
++|  (action : Action.t)
++|  =
++|  match action, model.status with
++|  | Restart, _ ->
++|    let snake = Snake.spawn_random_exn ~rows ~cols ~invalid_pos:[] ~color in
++|    { Model.score = 0; snake; status = Playing }
++|  | Move apple, Playing ->
++|    let ate_apple_score = 1 in
++|    let snake = Snake.move model.snake in
++|    if Snake.is_eatting_self snake
++|    then { model with status = Game_over Ate_self }
++|    else if Snake.is_out_of_bounds ~rows ~cols snake
++|    then { model with status = Game_over Out_of_bounds }
++|    else if Snake.is_eatting_apple snake apple
++|    then
++|      { model with
++|        snake = Snake.grow_eventually ~by:1 snake
++|      ; score = model.score + ate_apple_score
++|      }
++|    else { model with snake }
++|  | Change_direction dir, Playing ->
++|    { model with snake = Snake.with_direction model.snake dir }
++|  | Move _, Not_started
++|  | Move _, Game_over _
++|  | Change_direction _, Not_started
++|  | Change_direction _, Game_over _ -> model
++|;;
++|
++|let computation ~rows ~cols ~default_snake =
++|  Bonsai.state_machine0
++|    [%here]
++|    (module Model)
++|    (module Action)
++|    ~default_model:{ Model.snake = default_snake; status = Not_started; score = 0 }
++|    ~apply_action:(apply_action ~rows ~cols ~color:(Snake.color default_snake))
++|;;
+
+==== /src/player_state.mli ====
+-1,0 +1,39
++|open! Core
++|open! Bonsai
++|
++|module Action : sig
++|  type t =
++|    | Restart
++|    | Move of Apple.t
++|    | Change_direction of Direction.t
++|end
++|
++|module Model : sig
++|  module End_reason : sig
++|    type t =
++|      | Ate_self
++|      | Out_of_bounds
++|    [@@deriving sexp, equal]
++|  end
++|
++|  module Status : sig
++|    type t =
++|      | Not_started
++|      | Playing
++|      | Game_over of End_reason.t
++|    [@@deriving sexp, equal, variants]
++|  end
++|
++|  type t =
++|    { score : int
++|    ; snake : Snake.t
++|    ; status : Status.t
++|    }
++|  [@@deriving sexp, equal, fields]
++|end
++|
++|val computation
++|  :  rows:int
++|  -> cols:int
++|  -> default_snake:Snake.t
++|  -> (Model.t * (Action.t -> unit Effect.t)) Computation.t
+
+==== /src/snake.ml ====
+-1,28 +1,59
+  open! Core
+  
+  module Color = struct
+    include Css_gen.Color
+  
+    let equal a b = Css_gen.Color.compare a b |> Int.equal 0
+  end
+  
+  type t =
+    { pos : Position.t list
+    ; direction : Direction.t
+    ; color : Color.t
++|  ; left_to_grow : int
+    }
+  [@@deriving sexp, equal]
+  
+  let list_of_t s = s.pos
+  
+  let spawn_random_exn ~rows ~cols ~invalid_pos ~color =
+    let head = Position.random_pos ~rows ~cols:(cols / 2) ~invalid_pos in
+    let head_exn = Option.value_exn head in
+-|  { pos = [ head_exn ]; color; direction = Direction.Right }
++|  { pos = [ head_exn ]; direction = Direction.Right; left_to_grow = 0; color }
+  ;;
+  
+  let cell_style s pos =
+    if List.mem (list_of_t s) pos ~equal:Position.equal
+    then Some (Css_gen.background_color s.color)
+    else None
++|;;
++|
++|let head s = List.hd_exn s.pos
++|
++|let move s =
++|  let new_head = Position.step (head s) s.direction in
++|  let new_pos =
++|    let with_head = new_head :: s.pos in
++|    if Int.equal s.left_to_grow 0 then List.drop_last_exn with_head else with_head
++|  in
++|  let left_to_grow = Int.max 0 (s.left_to_grow - 1) in
++|  { s with left_to_grow; pos = new_pos }
++|;;
++|
++|let color s = s.color
++|let with_direction s direction = { s with direction }
++|let grow_eventually ~by s = { s with left_to_grow = s.left_to_grow + by }
++|
++|let is_out_of_bounds ~rows ~cols s =
++|  let { Position.row; col } = head s in
++|  row < 0 || row >= rows || col < 0 || col >= cols
++|;;
++|
++|let is_eatting_apple s a = List.mem (Apple.list_of_t a) (head s) ~equal:Position.equal
++|
++|let is_eatting_self s =
++|  match list_of_t s with
++|  | head :: tail -> List.mem tail head ~equal:Position.equal
++|  (* This should never happen. *)
++|  | [] -> false
+  ;;
+
+==== /src/snake.mli ====
+-7,16 +7,43
+  (** [list_of_t t] returns a list of [Position.t]s occupied by the snake. *)
+  val list_of_t : t -> Position.t list
+  
+  (** [spawn_random_exn ~rows ~cols ~invalid_pos ~color] creates a length-1 snake
+      placed randomly on the left half ([col < cols/2]) of a rows*cols grid.
+      The provided color will be used in calls to [cell_style]. *)
+  val spawn_random_exn
+    :  rows:int
+    -> cols:int
+    -> invalid_pos:Position.t list
+    -> color:Css_gen.Color.t
+    -> t
+  
+  (** [cell_style t pos] computes a [Css_gen.t] style for a cell at [pos], if
+      that cell is occupied by t. Otherwise, it returns [None] *)
+  val cell_style : t -> Position.t -> Css_gen.t option
++|
++|
++|(** [move t] moves a snake 1 step in its current direction. It may or may not grow,
++|    depending on its internal state. *)
++|val move : t -> t
++|
++|(** [color t] returns the color of the snake. *)
++|val color : t -> Css_gen.Color.t
++|
++|(** [with_direction t dir] returns a [Snake.t] with an updated direction. *)
++|val with_direction : t -> Direction.t -> t
++|
++|(** [is_eatting_apple t] returns true iff the snake's head is overlapping
++|    with the provided [Apple.t].  *)
++|val is_eatting_apple : t -> Apple.t -> bool
++|
++|(** [is_eatting_self t] returns true iff the snake's head is overlapping with any of
++|    the snake's body segments.  *)
++|val is_eatting_self : t -> bool
++|
++|(** [is_out_of_bounds ~rows ~cols t] returns true iff the snake's head has gone
++|    outside of the [rows]*[cols] grid. *)
++|val is_out_of_bounds : rows:int -> cols:int -> t -> bool
++|
++|(** [grow_eventually ~by] updates a snake's internal state to grow 1 cell
++|    for the next [by] times [move] is called. *)
++|val grow_eventually : by:int -> t -> t

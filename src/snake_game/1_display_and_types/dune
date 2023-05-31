@@ -1,0 +1,4 @@
+; Hack to make dune include `index.html`. Not sure how to do this cleaner.
+
+(rule
+ (copy index.html index.htm))
