@@ -58,7 +58,7 @@ module Private = struct
 
   let project_backup_dir ~workbench_dir ~project =
     let now = Time_ns.now () in
-    let now_str = Time_ns.to_string_abs_trimmed ~zone:Time.Zone.utc now in
+    let now_str = Time_ns.to_string_abs_trimmed ~zone:Core_private.Time_zone.utc now in
     Filename.concat workbench_dir (sprintf "%s-backup-%s" project now_str)
   ;;
 end

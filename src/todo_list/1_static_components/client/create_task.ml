@@ -5,8 +5,9 @@ open! Bonsai_web
 
 (* $MDX part-begin=style *)
 module Style =
-[%css.raw
-{|
+[%css
+stylesheet
+  {|
 .create_task_button {
   font-size: 16px;
   padding: 8px 16px;
@@ -25,13 +26,12 @@ let alert s = Js_of_ocaml.Dom_html.window##alert (Js_of_ocaml.Js.string s)
 let view_create_tasks_button =
   Vdom.(
     Node.button
-      ~attr:
-        (Attr.many
-           [ Attr.class_ Style.create_task_button
-           ; Attr.on_click (fun _e ->
-               alert "Not yet implemented.";
-               Ui_effect.Ignore)
-           ])
+      ~attrs:
+        [ Style.create_task_button
+        ; Attr.on_click (fun _e ->
+            alert "Not yet implemented.";
+            Ui_effect.Ignore)
+        ]
       [ Node.text "Create Task" ])
 ;;
 

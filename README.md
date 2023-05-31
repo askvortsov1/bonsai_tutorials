@@ -1,5 +1,9 @@
 # Bonsai Tutorials
 
+> **NOTE** Until Jane Street v0.16 packages are released,
+> you'll need to set up a switch using development versions of Jane Street packages.
+> You can find instructions [here](https://github.com/janestreet/opam-repository).
+
 Bonsai is an OCaml library and runtime for building frontend web apps.
 In these tutorials, you'll learn Bonsai by building some simple example apps.
 

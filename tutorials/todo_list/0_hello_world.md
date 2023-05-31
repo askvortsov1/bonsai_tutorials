@@ -236,7 +236,7 @@ bindings for browser APIs.
   virtual_dom
   virtual_dom.input_widgets)
  (preprocess
-  (pps js_of_ocaml-ppx ppx_jane ppx_css)))
+  (pps js_of_ocaml-ppx ppx_jane bonsai.ppx_bonsai ppx_css)))
 ```
 
 Once you mark a library or executable with `js_of_ocaml`, you are in
@@ -281,17 +281,7 @@ open! Core
 open! Async_kernel
 open! Bonsai_web
 
-let run () =
-  let (_ : _ Start.Handle.t) =
-    Start.start
-      Start.Result_spec.just_the_view
-      ~bind_to_element_with_id:"app"
-      App.component
-  in
-  return ()
-;;
-
-let () = don't_wait_for (run ())
+let () = Bonsai_web.Start.start App.component
 ```
 
 The `bind_to_element_with_id` tells Bonsai to attach itself to the `app` HTML element,

@@ -52,9 +52,9 @@ let%expect_test "valid project" =
              \n    Vdom.Node.(\
              \n      div\
              \n        [ span [ textf \"%s: \" label ]\
-             \n        ; button ~attr:(Vdom.Attr.on_click (fun _ -> set_count (count - 1))) [ text \"-\" ]\
+             \n        ; button ~attrs:[(Vdom.Attr.on_click (fun _ -> set_count (count - 1)))] [ text \"-\" ]\
              \n        ; span [ textf \"%d\" count ]\
-             \n        ; button ~attr:(Vdom.Attr.on_click (fun _ -> set_count (count + 1))) [ text \"+\" ]\
+             \n        ; button ~attrs:[(Vdom.Attr.on_click (fun _ -> set_count (count + 1)))] [ text \"+\" ]\
              \n        ])\
              \n  in\
              \n  view, state\
@@ -109,7 +109,7 @@ let%expect_test "valid project" =
              \n  and by = by\
              \n  and label = label in\
              \n  let button op action =\
-             \n    N.button ~attr:(A.on_click (fun _ -> inject action)) [ N.textf \"%s%d\" op by ]\
+             \n    N.button ~attrs:[(A.on_click (fun _ -> inject action))] [ N.textf \"%s%d\" op by ]\
              \n  in\
              \n  let view =\
              \n    N.div\

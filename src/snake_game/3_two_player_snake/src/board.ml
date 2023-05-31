@@ -2,8 +2,9 @@ open! Core
 open! Bonsai_web
 
 module Style =
-[%css.raw
-{|
+[%css
+stylesheet
+  {|
 .grid {
   width: 600px;
   height: 600px;
@@ -36,10 +37,10 @@ let view_game_grid rows cols cell_style_driver =
       List.init cols ~f:(fun col ->
         let pos = { Position.row; col } in
         let style = cell_style_driver pos in
-        Vdom.(Node.div ~attr:(Attr.style style) [])))
+        Vdom.(Node.div ~attrs:[ Attr.style style ] [])))
     |> List.concat
   in
-  Vdom.(Node.div ~attr:(Attr.class_ Style.grid) cells)
+  Vdom.(Node.div ~attrs:[ Style.grid ] cells)
 ;;
 
 let view_score_status ~label (player : Player_state.Model.t) =
@@ -57,31 +58,9 @@ let view_score_status ~label (player : Player_state.Model.t) =
   Vdom.(Node.div (Node.h3 [ Node.text label ] :: content))
 ;;
 
-let set_style_property key value =
-  let open Js_of_ocaml in
-  let priority = Js.undefined in
-  let res =
-    Dom_html.document##.documentElement##.style##setProperty
-      (Js.string key)
-      (Js.string value)
-      priority
-  in
-  ignore res
-;;
-
 (* $MDX part-begin=component *)
 let component ~rows ~cols player1 player2 (game_elements : Game_elements.t Value.t) =
   let open Bonsai.Let_syntax in
-  (* TODO: use `Attr.css_var` instead. *)
-  let on_activate =
-    Ui_effect.of_sync_fun
-      (fun () ->
-        set_style_property "--grid-rows" (Int.to_string rows);
-        set_style_property "--grid-cols" (Int.to_string cols))
-      ()
-    |> Value.return
-  in
-  let%sub () = Bonsai.Edge.lifecycle ~on_activate () in
   let%arr player1 = player1
   and player2 = player2
   and game_elements = game_elements in
@@ -90,6 +69,10 @@ let component ~rows ~cols player1 player2 (game_elements : Game_elements.t Value
   in
   Vdom.(
     Node.div
+      ~attrs:
+        [ Attr.css_var ~name:"grid-rows" (Int.to_string rows)
+        ; Attr.css_var ~name:"grid-cols" (Int.to_string cols)
+        ]
       [ Node.h1 [ Node.text "Snake Game" ]
       ; Node.p [ Node.text "Click anywhere to reset." ]
       ; Node.div

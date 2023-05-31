@@ -397,7 +397,6 @@ in some parent component, and pass them in. Add the following to `player_state.m
 ```ocaml
 let computation ~rows ~cols ~default_snake =
   Bonsai.state_machine0
-    [%here]
     (module Model)
     (module Action)
     ~default_model:{ Model.snake = default_snake; status = Not_started; score = 0 }
@@ -485,16 +484,26 @@ end
 Once again, we'll implement `apply_action` one step at a time.
 Notice that `apply_action` takes an additional `snake` argument,
 which is the up-to-date value of the `Snake.t Value.t` we provided.
+This input is actually a `Snake.t Computation_status.t`,
+which is just `Inactive | Active Snake.t`. We don't need to worry about inactive inputs, so we can treat that as a no-op:
 
+<!-- $MDX file=../../src/snake_game/2_state_machines/src/apple_state.ml,part=apply_action_sig -->
+```ocaml
+let apply_action ~rows ~cols ~inject ~schedule_event snake model action =
+  match snake with
+  | Bonsai.Computation_status.Inactive -> model (* Should never happen. *)
+  | Active snake ->
+```
+
+Onto the cases.
 `Place` is simple: we just respawn the apple.
 
 <!-- $MDX file=../../src/snake_game/2_state_machines/src/apple_state.ml,part=apply_action_spawn -->
 ```ocaml
-let apply_action ~rows ~cols ~inject ~schedule_event snake model action =
-  match action with
-  | Action.Place ->
-    let invalid_pos = Snake.list_of_t snake in
-    Apple.spawn_random_exn ~rows ~cols ~invalid_pos
+    (match action with
+     | Action.Place ->
+       let invalid_pos = Snake.list_of_t snake in
+       Apple.spawn_random_exn ~rows ~cols ~invalid_pos
 ```
 
 On `Tick`, if the apple has been eatten, we respawn it by dispatching an `Action.Place`.
@@ -506,9 +515,9 @@ the currently running effect.
 
 <!-- $MDX file=../../src/snake_game/2_state_machines/src/apple_state.ml,part=apply_action_tick -->
 ```ocaml
-  | Tick ->
-    if Snake.is_eatting_apple snake model then schedule_event (inject Action.Place);
-    model
+     | Tick ->
+       if Snake.is_eatting_apple snake model then schedule_event (inject Action.Place);
+       model)
 ;;
 ```
 
@@ -525,7 +534,6 @@ And finally, we'll wrap things up in a `Bonsai.state_machine1`:
 ```ocaml
 let computation ~rows ~cols ~default_apple snake =
   Bonsai.state_machine1
-    [%here]
     (module Model)
     (module Action)
     ~default_model:default_apple
@@ -561,16 +569,6 @@ if both the snake and apple are initialized:
 ```ocaml
 let component ~rows ~cols (player : Player_state.Model.t Value.t) apple =
   let open Bonsai.Let_syntax in
-  (* TODO: use `Attr.css_var` instead. *)
-  let on_activate =
-    Ui_effect.of_sync_fun
-      (fun () ->
-        set_style_property "--grid-rows" (Int.to_string rows);
-        set_style_property "--grid-cols" (Int.to_string cols))
-      ()
-    |> Value.return
-  in
-  let%sub () = Bonsai.Edge.lifecycle ~on_activate () in
   let%arr player = player
   and apple = apple in
   let cell_style_driver =
@@ -578,6 +576,10 @@ let component ~rows ~cols (player : Player_state.Model.t Value.t) apple =
   in
   Vdom.(
     Node.div
+      ~attrs:
+        [ Attr.css_var ~name:"grid-rows" (Int.to_string rows)
+        ; Attr.css_var ~name:"grid-cols" (Int.to_string cols)
+        ]
       [ Node.h1 [ Node.text "Snake Game" ]
       ; Node.p [ Node.text "Click anywhere to reset." ]
       ; view_score_status ~label:"Results" player
@@ -673,12 +675,7 @@ Continuing with the code...
   and on_reset = on_reset in
   Vdom.(
     Node.div
-      ~attr:
-        (Attr.many
-           [ Attr.on_keydown on_keydown
-           ; Attr.on_click (fun _ -> on_reset)
-           ; Attr.class_ Style.app
-           ])
+      ~attrs:[ Attr.on_keydown on_keydown; Attr.on_click (fun _ -> on_reset); Style.app ]
       [ board ])
 ;;
 ```
@@ -690,8 +687,9 @@ so we'll also add some custom CSS to make this div take up the whole page:
 <!-- $MDX file=../../src/snake_game/2_state_machines/src/app.ml,part=style -->
 ```ocaml
 module Style =
-[%css.raw
-{|
+[%css
+stylesheet
+  {|
 html,body{min-height:100%; height:100%;}
 
 .app {
@@ -779,9 +777,15 @@ We can do this with [Bonsai.Clock.every](https://github.com/janestreet/bonsai/bl
       and apple = apple in
       Effect.Many [ player_inject (Move apple); apple_inject Tick ]
     in
-    Bonsai.Clock.every [%here] (Time_ns.Span.of_sec 0.25) clock_effect
+    Bonsai.Clock.every
+      ~when_to_start_next_effect:`Every_multiple_of_period_blocking
+      (Time_ns.Span.of_sec 0.25)
+      clock_effect
   in
 ```
+
+`when_to_start_next_effect` gives you fine control over the scheduler.
+For our case, it doesn't really matter which option we choose.
 
 ## Recap
 

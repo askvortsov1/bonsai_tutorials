@@ -44,16 +44,7 @@ let global_tasks =
 (* $MDX part-end *)
 
 (* $MDX part-begin=with_tasks *)
-let run () =
-  let (_ : _ Start.Handle.t) =
-    Start.start
-      Start.Result_spec.just_the_view
-      ~bind_to_element_with_id:"app"
-      (App.component ~tasks:global_tasks)
-  in
-  return ()
-;;
+
+let () = Bonsai_web.Start.start (App.component ~tasks:global_tasks)
 
 (* $MDX part-end *)
-
-let () = don't_wait_for (run ())

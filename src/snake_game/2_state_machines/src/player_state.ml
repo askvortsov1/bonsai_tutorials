@@ -86,7 +86,6 @@ let apply_action
 (* $MDX part-begin=computation *)
 let computation ~rows ~cols ~default_snake =
   Bonsai.state_machine0
-    [%here]
     (module Model)
     (module Action)
     ~default_model:{ Model.snake = default_snake; status = Not_started; score = 0 }

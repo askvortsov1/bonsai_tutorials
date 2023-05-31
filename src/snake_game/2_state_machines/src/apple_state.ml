@@ -14,17 +14,22 @@ module Action = struct
 end
 (* $MDX part-end *)
 
-(* $MDX part-begin=apply_action_spawn *)
+(* $MDX part-begin=apply_action_sig *)
 let apply_action ~rows ~cols ~inject ~schedule_event snake model action =
-  match action with
-  | Action.Place ->
-    let invalid_pos = Snake.list_of_t snake in
-    Apple.spawn_random_exn ~rows ~cols ~invalid_pos
-  (* $MDX part-end *)
-  (* $MDX part-begin=apply_action_tick *)
-  | Tick ->
-    if Snake.is_eatting_apple snake model then schedule_event (inject Action.Place);
-    model
+  match snake with
+  | Bonsai.Computation_status.Inactive -> model (* Should never happen. *)
+  | Active snake ->
+    (* $MDX part-end *)
+    (* $MDX part-begin=apply_action_spawn *)
+    (match action with
+     | Action.Place ->
+       let invalid_pos = Snake.list_of_t snake in
+       Apple.spawn_random_exn ~rows ~cols ~invalid_pos
+     (* $MDX part-end *)
+     (* $MDX part-begin=apply_action_tick *)
+     | Tick ->
+       if Snake.is_eatting_apple snake model then schedule_event (inject Action.Place);
+       model)
 ;;
 
 (* $MDX part-end *)
@@ -32,7 +37,6 @@ let apply_action ~rows ~cols ~inject ~schedule_event snake model action =
 (* $MDX part-begin=computation *)
 let computation ~rows ~cols ~default_apple snake =
   Bonsai.state_machine1
-    [%here]
     (module Model)
     (module Action)
     ~default_model:default_apple
