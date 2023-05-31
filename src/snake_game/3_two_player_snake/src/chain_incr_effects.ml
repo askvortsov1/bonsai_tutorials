@@ -16,17 +16,16 @@ let scheduler
   (* $MDX part-end *)
   (* $MDX part-begin=apply_action *)
   let apply_action ~inject ~schedule_event input _model (Action.Run effect_fns) =
-    match effect_fns with
-    | effect_fn :: dependents ->
-      schedule_event (Effect.Many [ effect_fn input; inject (Action.Run dependents) ])
-    | [] -> ()
+    match input, effect_fns with
+    | Bonsai.Computation_status.Active input_val, effect_fn :: dependents ->
+      schedule_event (Effect.Many [ effect_fn input_val; inject (Action.Run dependents) ])
+    | _, [] | Inactive, _ -> ()
   in
   (* $MDX part-end *)
   (* $MDX part-begin=sm_def *)
   let open Bonsai.Let_syntax in
   let%sub (), inject =
     Bonsai.state_machine1
-      [%here]
       (module Unit)
       (module Action)
       ~default_model:()

@@ -168,7 +168,7 @@ Now, let's write some HTML in OCaml.
 A full explanation, with many examples, can be found in [the Bonsai virtual_dom docs](https://bonsai.red/01-virtual_dom.html).
 In summary:
 
-> As a general rule, instead of `<tag attr="value">children</tag>` we'll use `tag_func ~attr:(attr_func attr_args) [child1; child2; ...]`.
+> As a general rule, instead of `<tag attr="value">children</tag>` we'll use `tag_func ~attrs:[attr_func attr_args] [child1; child2; ...]`.
 
 So with that in mind, here's how we'll implement the create tasks section:
 
@@ -193,19 +193,18 @@ let alert s = Js_of_ocaml.Dom_html.window##alert (Js_of_ocaml.Js.string s)
 let view_create_tasks_button =
   Vdom.(
     Node.button
-      ~attr:
-        (Attr.many
-           [ Attr.class_ Style.create_task_button
-           ; Attr.on_click (fun _e ->
-               alert "Not yet implemented.";
-               Ui_effect.Ignore)
-           ])
+      ~attrs:
+        [ Style.create_task_button
+        ; Attr.on_click (fun _e ->
+            alert "Not yet implemented.";
+            Ui_effect.Ignore)
+        ]
       [ Node.text "Create Task" ])
 ;;
 ```
 
-This vdom looks a bit messier, but that's just because we need an extra wrapper function to
-create vdom elements with multiple (`Attr.many`) attrs. We'll add `Style` in just a second.
+As you can see, it's trivial to have several attrs on one element: just add them to the list!
+We'll define `Style` in just a second.
 
 Let's turn our attention to the `on_click` attr, which demonstrates how we can make things interactive.
 The actual `alert` call is run as a side effect and ignored with a semicolon. However, there's a seemingly
@@ -220,7 +219,7 @@ We'll use `ppx_css`, which is the equivalent of [css in js](https://blog.logrock
 for Bonsai.
 
 It creates a module that loads our CSS into the document, and exposes class names we can use
-in our components. One of our button's attributes is `Attr.class_ Style.create_task_button`.
+in our components. One of our button's attributes is `Style.create_task_button`.
 This will apply all CSS with the class "create_task_button" to our button.
 Let's write that CSS!
 
@@ -229,8 +228,9 @@ Add the following code above our component and view definitions:
 <!-- $MDX file=../../src/todo_list/1_static_components/client/create_task.ml,part=style -->
 ```ocaml
 module Style =
-[%css.raw
-{|
+[%css
+stylesheet
+  {|
 .create_task_button {
   font-size: 16px;
   padding: 8px 16px;
@@ -322,8 +322,9 @@ Here's how we built and styled this view:
 <!-- $MDX file=../../src/todo_list/1_static_components/client/task_list.ml,part=tile_view -->
 ```ocaml
 module Style =
-[%css.raw
-{|
+[%css
+stylesheet
+  {|
 .task_tile {
   box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);
   transition: 0.3s;
@@ -358,10 +359,10 @@ let view_task { Task.completion_status; due_date; title; description; id = (_ : 
   in
   Vdom.(
     Node.div
-      ~attr:(Attr.class_ Style.task_tile)
+      ~attrs:[ Style.task_tile ]
       [ Node.h3 [ Node.text title ]
       ; Node.div
-          ~attr:(Attr.class_ Style.task_meta)
+          ~attrs:[ Style.task_meta ]
           [ Node.p [ Node.textf "Due: %s" (Date.to_string due_date) ]; view_completion ]
       ; format_description description
       ])
@@ -404,9 +405,9 @@ let component ~tasks =
   and create_task = create_task in
   Vdom.(
     Node.div
-      ~attr:(Attr.many [ Attr.class_ Style.app; Attr.id "app" ])
-      [ Node.h1 ~attr:(Attr.class_ Style.title) [ Node.text "Bonsai To-do List" ]
-      ; Node.div ~attr:(Attr.class_ Style.container) [ task_list; create_task ]
+      ~attrs:[ Style.app; Attr.id "app" ]
+      [ Node.h1 ~attrs:[ Style.title ] [ Node.text "Bonsai To-do List" ]
+      ; Node.div ~attrs:[ Style.container ] [ task_list; create_task ]
       ])
 ;;
 ```
@@ -422,8 +423,9 @@ We wanted to put our two sections side-by-side, so here's how we styled the `app
 <!-- $MDX file=../../src/todo_list/1_static_components/client/app.ml,part=style -->
 ```ocaml
 module Style =
-[%css.raw
-{|
+[%css
+stylesheet
+  {|
 .app {
   display: flex;
   flex-direction: column;
@@ -506,15 +508,7 @@ Now, update `run` to pass them to `App.component`:
 
 <!-- $MDX file=../../src/todo_list/1_static_components/client/main.ml,part=with_tasks -->
 ```ocaml
-let run () =
-  let (_ : _ Start.Handle.t) =
-    Start.start
-      Start.Result_spec.just_the_view
-      ~bind_to_element_with_id:"app"
-      (App.component ~tasks:global_tasks)
-  in
-  return ()
-;;
+let () = Bonsai_web.Start.start (App.component ~tasks:global_tasks)
 ```
 
 And that's it! Everything should build, and if you run the app and

@@ -4,8 +4,9 @@ open Common
 
 (* $MDX part-begin=tile_view *)
 module Style =
-[%css.raw
-{|
+[%css
+stylesheet
+  {|
 .task_tile {
   box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);
   transition: 0.3s;
@@ -40,10 +41,10 @@ let view_task { Task.completion_status; due_date; title; description; id = (_ : 
   in
   Vdom.(
     Node.div
-      ~attr:(Attr.class_ Style.task_tile)
+      ~attrs:[ Style.task_tile ]
       [ Node.h3 [ Node.text title ]
       ; Node.div
-          ~attr:(Attr.class_ Style.task_meta)
+          ~attrs:[ Style.task_meta ]
           [ Node.p [ Node.textf "Due: %s" (Date.to_string due_date) ]; view_completion ]
       ; format_description description
       ])

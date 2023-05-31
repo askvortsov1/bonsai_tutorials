@@ -345,7 +345,7 @@ There's quite a few ways to display a game in the browser:
   Is that a remotely good solution? Absolutely not. Did I list it anyway because of coolmathgames nostalgia? *maybe*. Moving on...
 
 The [`Virtual_dom` library](https://github.com/janestreet/virtual_dom) lets Bonsai
-incrementally compute DOM in a clean, declarative style.
+incrementally compute DOM in a clean, declarative fashion.
 As of writing this post, no one has built a similar library for Canvas2D or WebGL.
 That doesn't mean it's not possible! For example, see
 [this demo](https://twitter.com/tyroverby/status/1597057701288476672) of a prototype
@@ -372,8 +372,9 @@ open! Core
 open! Bonsai_web
 
 module Style =
-[%css.raw
-{|
+[%css
+stylesheet
+  {|
 .grid {
   width: 600px;
   height: 600px;
@@ -434,10 +435,10 @@ let view_game_grid rows cols cell_style_driver =
       List.init cols ~f:(fun col ->
         let pos = { Position.row; col } in
         let style = cell_style_driver pos in
-        Vdom.(Node.div ~attr:(Attr.style style) [])))
+        Vdom.(Node.div ~attrs:[ Attr.style style ] [])))
     |> List.concat
   in
-  Vdom.(Node.div ~attr:(Attr.class_ Style.grid) cells)
+  Vdom.(Node.div ~attrs:[ Style.grid ] cells)
 ;;
 ```
 
@@ -455,41 +456,29 @@ Add the following implementation of `component` at the bottom of `board.ml
 
 <!-- $MDX file=../../src/snake_game/1_display_and_types/src/board.ml,part=component -->
 ```ocaml
-let set_style_property key value =
-  let open Js_of_ocaml in
-  let priority = Js.undefined in
-  let res =
-    Dom_html.document##.documentElement##.style##setProperty
-      (Js.string key)
-      (Js.string value)
-      priority
-  in
-  ignore res
-;;
-
 let component ~rows ~cols snake apple =
   let open Bonsai.Let_syntax in
-  (* TODO: use `Attr.css_var` instead. *)
-  let on_activate =
-    Ui_effect.of_sync_fun
-      (fun () ->
-        set_style_property "--grid-rows" (Int.to_string rows);
-        set_style_property "--grid-cols" (Int.to_string cols))
-      ()
-    |> Value.return
-  in
-  let%sub () = Bonsai.Edge.lifecycle ~on_activate () in
   let%arr snake = snake
   and apple = apple in
   let cell_style_driver = merge_cell_style_drivers ~snakes:[ snake ] ~apples:[ apple ] in
   Vdom.(
     Node.div
+      ~attrs:
+        [ Style.Variables.set
+            ~grid_cols:(Int.to_string rows)
+            ~grid_rows:(Int.to_string cols)
+            ()
+        ]
       [ Node.h1 [ Node.text "Snake Game" ]
       ; Node.p [ Node.text "Click anywhere to reset." ]
       ; view_game_grid rows cols cell_style_driver
       ])
 ;;
 ```
+
+The functorized `Style` module contains a `Variables.set` function,
+which allows us to safely set the `--grid-rows` and `--grid-cols` variables
+that we used in our css before.
 
 ### Bringing It All Together
 

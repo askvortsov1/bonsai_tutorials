@@ -35,7 +35,6 @@ let apply_action ~rows ~cols ~inject ~schedule_event model action =
 (* $MDX part-begin=computation *)
 let computation ~rows ~cols ~default_apple =
   Bonsai.state_machine0
-    [%here]
     (module Model)
     (module Action)
     ~default_model:default_apple

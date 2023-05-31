@@ -16,12 +16,11 @@ jobs:
         os:
           - ubuntu-latest
         ocaml-compiler:
-          - 4.13.x
+          - 4.14.x
 
     runs-on: ${{ matrix.os }}
 
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v3
 
       - name: Set up OCaml
@@ -29,16 +28,9 @@ jobs:
         with:
           ocaml-compiler: ${{ matrix.ocaml-compiler }}
 
-      ### Bonsai bleeding release is currently broken
-      # - name: Set up source repos
-      #   run: |
-      #     opam repo add janestreet-bleeding https://ocaml.janestreet.com/opam-repository
-      #     opam repo add janestreet-bleeding-external https://github.com/janestreet/opam-repository.git#external-packages
-      #     eval $(opam env)
-
       - name: Install Deps
         run: |
-          opam install --yes . src/todo_list/0_hello_world
+          opam install --yes . src/todo_list/0_hello_world src/snake_game/0_hello_world
           eval $(opam env)
 
       - name: Build

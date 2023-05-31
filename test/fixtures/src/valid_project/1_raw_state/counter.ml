@@ -11,9 +11,9 @@ let component ~label () =
     Vdom.Node.(
       div
         [ span [ textf "%s: " label ]
-        ; button ~attr:(Vdom.Attr.on_click (fun _ -> set_count (count - 1))) [ text "-" ]
+        ; button ~attrs:[(Vdom.Attr.on_click (fun _ -> set_count (count - 1)))] [ text "-" ]
         ; span [ textf "%d" count ]
-        ; button ~attr:(Vdom.Attr.on_click (fun _ -> set_count (count + 1))) [ text "+" ]
+        ; button ~attrs:[(Vdom.Attr.on_click (fun _ -> set_count (count + 1)))] [ text "+" ]
         ])
   in
   view, state

@@ -189,7 +189,6 @@ and from the implementation in `apple_state.ml`:
 ```ocaml
 let computation ~rows ~cols ~default_apple =
   Bonsai.state_machine0
-    [%here]
     (module Model)
     (module Action)
     ~default_model:default_apple
@@ -199,7 +198,8 @@ let computation ~rows ~cols ~default_apple =
 
 We'll also need to update `apply_action` in `apple_state.ml`.
 
-Firstly, the `snake` input is no longer present:
+Firstly, the `snake` input is no longer present.
+We can remove it and the `Computation_status` match:
 
 <!-- $MDX file=../../src/snake_game/3_two_player_snake/src/apple_state.ml,part=apply_sig -->
 ```ocaml
@@ -260,16 +260,6 @@ and display a second status for the other player.
 ```ocaml
 let component ~rows ~cols player1 player2 (game_elements : Game_elements.t Value.t) =
   let open Bonsai.Let_syntax in
-  (* TODO: use `Attr.css_var` instead. *)
-  let on_activate =
-    Ui_effect.of_sync_fun
-      (fun () ->
-        set_style_property "--grid-rows" (Int.to_string rows);
-        set_style_property "--grid-cols" (Int.to_string cols))
-      ()
-    |> Value.return
-  in
-  let%sub () = Bonsai.Edge.lifecycle ~on_activate () in
   let%arr player1 = player1
   and player2 = player2
   and game_elements = game_elements in
@@ -278,6 +268,12 @@ let component ~rows ~cols player1 player2 (game_elements : Game_elements.t Value
   in
   Vdom.(
     Node.div
+      ~attrs:
+        [ Style.Variables.set
+            ~grid_cols:(Int.to_string rows)
+            ~grid_rows:(Int.to_string cols)
+            ()
+        ]
       [ Node.h1 [ Node.text "Snake Game" ]
       ; Node.p [ Node.text "Click anywhere to reset." ]
       ; Node.div
@@ -429,7 +425,10 @@ Here's the code again:
       and apple = apple in
       Effect.Many [ player_inject (Move apple); apple_inject Tick ]
     in
-    Bonsai.Clock.every [%here] (Time_ns.Span.of_sec 0.25) clock_effect
+    Bonsai.Clock.every
+      ~when_to_start_next_effect:`Every_multiple_of_period_blocking
+      (Time_ns.Span.of_sec 0.25)
+      clock_effect
   in
 ```
 
@@ -599,7 +598,10 @@ Here's how our `clock_effect` code will change:
          @ List.map apple_injects ~f:(fun inject game_elements ->
              inject (Tick game_elements)))
     in
-    Bonsai.Clock.every [%here] (Time_ns.Span.of_sec 0.25) clock_effect
+    Bonsai.Clock.every
+      ~when_to_start_next_effect:`Every_multiple_of_period_blocking
+      (Time_ns.Span.of_sec 0.25)
+      clock_effect
   in
 ```
 
@@ -665,10 +667,10 @@ And the `apply_action` handler:
 <!-- $MDX file=../../src/snake_game/3_two_player_snake/src/chain_incr_effects.ml,part=apply_action -->
 ```ocaml
   let apply_action ~inject ~schedule_event input _model (Action.Run effect_fns) =
-    match effect_fns with
-    | effect_fn :: dependents ->
-      schedule_event (Effect.Many [ effect_fn input; inject (Action.Run dependents) ])
-    | [] -> ()
+    match input, effect_fns with
+    | Bonsai.Computation_status.Active input_val, effect_fn :: dependents ->
+      schedule_event (Effect.Many [ effect_fn input_val; inject (Action.Run dependents) ])
+    | _, [] | Inactive, _ -> ()
   in
 ```
 
@@ -679,7 +681,6 @@ Then, we wrap all this in `Bonsai.state_machine1`:
   let open Bonsai.Let_syntax in
   let%sub (), inject =
     Bonsai.state_machine1
-      [%here]
       (module Unit)
       (module Action)
       ~default_model:()

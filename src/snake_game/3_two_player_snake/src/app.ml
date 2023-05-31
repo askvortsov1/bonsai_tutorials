@@ -2,8 +2,9 @@ open! Core
 open! Bonsai_web
 
 module Style =
-[%css.raw
-{|
+[%css
+stylesheet
+  {|
 html,body{min-height:100%; height:100%;}
 
 .app {
@@ -79,7 +80,10 @@ let component =
          @ List.map apple_injects ~f:(fun inject game_elements ->
              inject (Tick game_elements)))
     in
-    Bonsai.Clock.every [%here] (Time_ns.Span.of_sec 0.25) clock_effect
+    Bonsai.Clock.every
+      ~when_to_start_next_effect:`Every_multiple_of_period_blocking
+      (Time_ns.Span.of_sec 0.25)
+      clock_effect
   in
   (* $MDX part-end *)
   (* $MDX part-begin=reset *)
@@ -119,11 +123,6 @@ let component =
   and on_reset = on_reset in
   Vdom.(
     Node.div
-      ~attr:
-        (Attr.many
-           [ Attr.on_keydown on_keydown
-           ; Attr.on_click (fun _ -> on_reset)
-           ; Attr.class_ Style.app
-           ])
+      ~attrs:[ Attr.on_keydown on_keydown; Attr.on_click (fun _ -> on_reset); Style.app ]
       [ board ])
 ;;
